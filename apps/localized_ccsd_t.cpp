@@ -6,7 +6,6 @@
 #include "localized_cc/ccsd.hpp"
 #include "localized_cc/frozen_core.hpp"
 #include "localized_cc/hamiltonian_rotation.hpp"
-#include "localized_cc/legacy_fortran.hpp"
 #include "localized_cc/laplace_triples.hpp"
 #include "localized_cc/lmp2_domains.hpp"
 #include "localized_cc/lmp2_preintegral.hpp"

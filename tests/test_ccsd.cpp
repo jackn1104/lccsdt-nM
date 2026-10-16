@@ -8,7 +8,6 @@
 #include "localized_cc/distributed_block_tensor.hpp"
 #include "localized_cc/distributed_pair_tensor.hpp"
 #include "localized_cc/frozen_core.hpp"
-#include "localized_cc/legacy_fortran.hpp"
 #include "localized_cc/partition.hpp"
 #include "localized_cc/parallel.hpp"
 #include "localized_cc/selected_ccsd_manifold.hpp"
@@ -1253,85 +1252,15 @@ void test_numeric_ccsd_partition() {
 }
 
 void test_singles_partition(){test_numeric_ccsd_partition();Matrix f({2,2}),s({1,1});Tensor4 g({2,2,2,2}),t({1,1,1,1});f(0,1)=0.5;s(0,0)=0.2;const auto p=partition_ccsd(f,g,s,t,1,{0},{1});close(p.singles_fia_t1,0.1,1e-15,"CCSD singles value");close(p.many_body_classes.at("M2"),0.1,1e-15,"CCSD singles M2 class");close(p.sum,p.parent_energy,1e-15,"CCSD singles partition sum");}
-void test_legacy_fortran_kernels(){
-  if(!legacy_fortran_backend_available())return;
+void test_cpp_energy_known_case(){
   constexpr std::size_t occupied=2,orbitals=4;
   Matrix fock({orbitals,orbitals}),t1({occupied,orbitals-occupied});
   Tensor4 eri({orbitals,orbitals,orbitals,orbitals});
   Tensor4 t2({occupied,occupied,orbitals-occupied,orbitals-occupied});
   fock(0,2)=0.3;fock(1,3)=-0.2;t1(0,0)=0.04;t1(1,1)=-0.03;
   eri(0,1,2,3)=0.5;t2(0,1,0,1)=0.08;
-  close(legacy_fortran_ccsd_energy(fock,eri,t1,t2,occupied,false),0.0277,1.0e-14,
-        "local legacy Fortran CCSD energy kernel");
-  close(legacy_fortran_ccsd_energy(fock,eri,t1,t2,occupied,true),0.0277,1.0e-14,
-        "legacy Fortran CCSD energy kernel");
-  Tensor6 left({1,1,1,2,2,2}),response({1,1,1,2,2,2});
-  for(std::size_t element=0;element<left.size();++element){
-    left.data()[element]=0.01*static_cast<double>(element+1);
-    response.data()[element]=-0.02*static_cast<double>(element+2);
-  }
-  close(legacy_fortran_triples_energy(left,response,false),
-        dot(left.data(),response.data())/36.0,1.0e-15,
-        "local legacy Fortran triples energy kernel");
-  close(legacy_fortran_triples_energy(left,response,true),
-        dot(left.data(),response.data())/36.0,1.0e-15,
-        "legacy Fortran triples energy kernel");
-
-  constexpr std::size_t virtuals=orbitals-occupied;
-  Tensor4 kernel_eri({orbitals,orbitals,orbitals,orbitals});
-  Matrix kernel_t1({occupied,virtuals});
-  Tensor4 tau({occupied,occupied,virtuals,virtuals});
-  for(std::size_t element=0;element<kernel_eri.size();++element)
-    kernel_eri.data()[element]=1.0e-4*static_cast<double>(element+1);
-  for(std::size_t element=0;element<kernel_t1.size();++element)
-    kernel_t1.data()[element]=-0.03+0.02*static_cast<double>(element);
-  for(std::size_t element=0;element<tau.size();++element)
-    tau.data()[element]=0.005*static_cast<double>(element+1);
-  Tensor4 expected({virtuals,virtuals,virtuals,virtuals});
-  for(std::size_t a=0;a<virtuals;++a)
-    for(std::size_t b=0;b<virtuals;++b)
-      for(std::size_t e=0;e<virtuals;++e)
-        for(std::size_t q=0;q<virtuals;++q){
-          double value=kernel_eri(occupied+a,occupied+b,occupied+e,occupied+q);
-          for(std::size_t m=0;m<occupied;++m)
-            value-=kernel_t1(m,b)*kernel_eri(occupied+a,m,occupied+e,occupied+q)-
-                   kernel_t1(m,a)*kernel_eri(occupied+b,m,occupied+e,occupied+q);
-          for(std::size_t m=0;m<occupied;++m)
-            for(std::size_t n=0;n<occupied;++n)
-              value+=0.25*tau(m,n,a,b)*
-                     kernel_eri(m,n,occupied+e,occupied+q);
-          expected(a,b,e,q)=value;
-        }
-  const auto local_wabef=
-      legacy_fortran_wabef(kernel_eri,kernel_t1,tau,occupied,false);
-  const auto distributed_wabef=
-      legacy_fortran_wabef(kernel_eri,kernel_t1,tau,occupied,true);
-  for(std::size_t element=0;element<expected.size();++element){
-    close(local_wabef.data()[element],expected.data()[element],1.0e-14,
-          "local legacy Fortran W_abef kernel");
-    close(distributed_wabef.data()[element],expected.data()[element],1.0e-14,
-          "distributed legacy Fortran W_abef kernel");
-  }
-  for(std::size_t a=0;a<virtuals;++a)
-    for(std::size_t b=0;b<virtuals;++b){
-      Matrix block({virtuals,virtuals});
-      legacy_fortran_wabef_block(
-          kernel_eri,kernel_t1,tau,occupied,a,b,block);
-      Matrix tau_ab({occupied,occupied});
-      for(std::size_t m=0;m<occupied;++m)
-        for(std::size_t n=0;n<occupied;++n)
-          tau_ab(m,n)=tau(m,n,a,b);
-      Matrix scalar_block({virtuals,virtuals});
-      legacy_fortran_wabef_block_from_pair_scalars(
-          kernel_eri,kernel_t1,tau_ab,occupied,a,b,scalar_block);
-      for(std::size_t e=0;e<virtuals;++e)
-        for(std::size_t q=0;q<virtuals;++q){
-          close(block(e,q),expected(a,b,e,q),1.0e-14,
-                "streamed legacy Fortran W_abef block kernel");
-          close(scalar_block(e,q),expected(a,b,e,q),1.0e-14,
-                "distributed-tau legacy Fortran W_abef block kernel");
-        }
-    }
+  close(ccsd_energy(fock,eri,t1,t2,occupied),0.0277,1.0e-14,
+        "C++ CCSD energy known case");
 }
 void test_screened_partition_and_csv(){
   Tensor6 contributions({1,1,1,2,2,2});
@@ -2273,7 +2202,7 @@ int main(int argc,char** argv) {
       run("water Z-matrix",test_water_zmatrix);
       run("many-body limits",test_many_body_limits);
       run("singles partition",test_singles_partition);
-      run("legacy Fortran kernels",test_legacy_fortran_kernels);
+      run("C++ energy known case",test_cpp_energy_known_case);
       run("screened partition",test_screened_partition_and_csv);
       run("checkpoint roundtrip",test_checkpoint_roundtrip);
       run("converged checkpoint restore",test_converged_ccsd_checkpoint_restore);

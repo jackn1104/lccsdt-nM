@@ -2,7 +2,6 @@
 #include "localized_cc/cuda_triples.hpp"
 #include "localized_cc/diis.hpp"
 #include "localized_cc/distributed_pair_tensor.hpp"
-#include "localized_cc/legacy_fortran.hpp"
 #include "localized_cc/parallel.hpp"
 #include "localized_cc/pm_symmetry.hpp"
 #include "localized_cc/selected_ccsd_storage.hpp"
@@ -1907,69 +1906,32 @@ std::pair<Matrix, Tensor4> fixed_point(
         wabef_blocks.emplace_back(
             std::array<std::size_t, 2>{virtuals, virtuals});
 
-      if constexpr (std::is_same_v<std::remove_cvref_t<Eri>, Tensor4>) {
-        if (legacy_fortran_backend_available()) {
-          for (std::size_t local = 0; local < tile_count; ++local)
-            legacy_fortran_wabef_block(
-                eri, t1, work.tau, occupied, tasks[local] / virtuals,
-                tasks[local] % virtuals, wabef_blocks[local]);
-        } else {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static)
 #endif
-          for (std::ptrdiff_t local_index = 0;
-               local_index < static_cast<std::ptrdiff_t>(tile_count);
-               ++local_index) {
-            const auto local = static_cast<std::size_t>(local_index);
-            const auto a = tasks[local] / virtuals;
-            const auto b = tasks[local] % virtuals;
-            auto& wabef_block = wabef_blocks[local];
-            for (std::size_t e = 0; e < virtuals; ++e)
-              for (std::size_t q = 0; q < virtuals; ++q) {
-                double value = eri(occupied + a, occupied + b, occupied + e,
-                                   occupied + q);
-                for (std::size_t m = 0; m < occupied; ++m)
-                  value -=
-                      t1(m, b) *
-                          eri(occupied + a, m, occupied + e, occupied + q) -
-                      t1(m, a) *
-                          eri(occupied + b, m, occupied + e, occupied + q);
-                for (std::size_t m = 0; m < occupied; ++m)
-                  for (std::size_t n = 0; n < occupied; ++n)
-                    value += 0.25 * work.tau(m, n, a, b) *
-                             eri(m, n, occupied + e, occupied + q);
-                wabef_block(e, q) = value;
-              }
+      for (std::ptrdiff_t local_index = 0;
+           local_index < static_cast<std::ptrdiff_t>(tile_count);
+           ++local_index) {
+        const auto local = static_cast<std::size_t>(local_index);
+        const auto a = tasks[local] / virtuals;
+        const auto b = tasks[local] % virtuals;
+        auto& wabef_block = wabef_blocks[local];
+        for (std::size_t e = 0; e < virtuals; ++e)
+          for (std::size_t q = 0; q < virtuals; ++q) {
+            double value = eri(occupied + a, occupied + b, occupied + e,
+                               occupied + q);
+            for (std::size_t m = 0; m < occupied; ++m)
+              value -=
+                  t1(m, b) *
+                      eri(occupied + a, m, occupied + e, occupied + q) -
+                  t1(m, a) *
+                      eri(occupied + b, m, occupied + e, occupied + q);
+            for (std::size_t m = 0; m < occupied; ++m)
+              for (std::size_t n = 0; n < occupied; ++n)
+                value += 0.25 * work.tau(m, n, a, b) *
+                         eri(m, n, occupied + e, occupied + q);
+            wabef_block(e, q) = value;
           }
-        }
-      } else {
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-        for (std::ptrdiff_t local_index = 0;
-             local_index < static_cast<std::ptrdiff_t>(tile_count);
-             ++local_index) {
-          const auto local = static_cast<std::size_t>(local_index);
-          const auto a = tasks[local] / virtuals;
-          const auto b = tasks[local] % virtuals;
-          auto& wabef_block = wabef_blocks[local];
-          for (std::size_t e = 0; e < virtuals; ++e)
-            for (std::size_t q = 0; q < virtuals; ++q) {
-              double value = eri(occupied + a, occupied + b, occupied + e,
-                                 occupied + q);
-              for (std::size_t m = 0; m < occupied; ++m)
-                value -=
-                    t1(m, b) *
-                        eri(occupied + a, m, occupied + e, occupied + q) -
-                    t1(m, a) *
-                        eri(occupied + b, m, occupied + e, occupied + q);
-              for (std::size_t m = 0; m < occupied; ++m)
-                for (std::size_t n = 0; n < occupied; ++n)
-                  value += 0.25 * work.tau(m, n, a, b) *
-                           eri(m, n, occupied + e, occupied + q);
-              wabef_block(e, q) = value;
-            }
-        }
       }
       contraction_tile.wabef.resize(tile_count * block_size);
       for (std::size_t local = 0; local < tile_count; ++local)
@@ -2303,80 +2265,34 @@ Matrix fixed_point_distributed(
       wabef_blocks.emplace_back(
           std::array<std::size_t, 2>{virtuals, virtuals});
 
-    if constexpr (std::is_same_v<std::remove_cvref_t<Eri>, Tensor4>) {
-      if (legacy_fortran_backend_available()) {
-        // The Fortran kernel owns its OpenMP region. Keeping these calls on
-        // the calling thread avoids nested OpenMP runtimes.
-        for (std::size_t local = 0; local < tile_count; ++local) {
-          Matrix tau_ab({occupied, occupied});
-          std::copy_n(tau_ab_scalars.begin() +
-                          static_cast<std::ptrdiff_t>(local * pair_count),
-                      pair_count, tau_ab.data().begin());
-          legacy_fortran_wabef_block_from_pair_scalars(
-              eri, t1, tau_ab, occupied, tasks[local] / virtuals,
-              tasks[local] % virtuals, wabef_blocks[local]);
-        }
-      } else {
 #if defined(_OPENMP)
 #pragma omp parallel for schedule(static)
 #endif
-        for (std::ptrdiff_t local_index = 0;
-             local_index < static_cast<std::ptrdiff_t>(tile_count);
-             ++local_index) {
-          const auto local = static_cast<std::size_t>(local_index);
-          const auto a = tasks[local] / virtuals;
-          const auto b = tasks[local] % virtuals;
-          auto& wabef_block = wabef_blocks[local];
-          for (std::size_t e = 0; e < virtuals; ++e)
-            for (std::size_t q = 0; q < virtuals; ++q) {
-              double value = eri(occupied + a, occupied + b, occupied + e,
-                                 occupied + q);
-              for (std::size_t m = 0; m < occupied; ++m)
-                value -=
-                    t1(m, b) *
-                        eri(occupied + a, m, occupied + e, occupied + q) -
-                    t1(m, a) *
-                        eri(occupied + b, m, occupied + e, occupied + q);
-              for (std::size_t m = 0; m < occupied; ++m)
-                for (std::size_t n = 0; n < occupied; ++n)
-                  value +=
-                      0.25 *
-                      tau_ab_scalars[local * pair_count + m * occupied + n] *
-                      eri(m, n, occupied + e, occupied + q);
-              wabef_block(e, q) = value;
-            }
+    for (std::ptrdiff_t local_index = 0;
+         local_index < static_cast<std::ptrdiff_t>(tile_count);
+         ++local_index) {
+      const auto local = static_cast<std::size_t>(local_index);
+      const auto a = tasks[local] / virtuals;
+      const auto b = tasks[local] % virtuals;
+      auto& wabef_block = wabef_blocks[local];
+      for (std::size_t e = 0; e < virtuals; ++e)
+        for (std::size_t q = 0; q < virtuals; ++q) {
+          double value = eri(occupied + a, occupied + b, occupied + e,
+                             occupied + q);
+          for (std::size_t m = 0; m < occupied; ++m)
+            value -=
+                t1(m, b) *
+                    eri(occupied + a, m, occupied + e, occupied + q) -
+                t1(m, a) *
+                    eri(occupied + b, m, occupied + e, occupied + q);
+          for (std::size_t m = 0; m < occupied; ++m)
+            for (std::size_t n = 0; n < occupied; ++n)
+              value +=
+                  0.25 *
+                  tau_ab_scalars[local * pair_count + m * occupied + n] *
+                  eri(m, n, occupied + e, occupied + q);
+          wabef_block(e, q) = value;
         }
-      }
-    } else {
-#if defined(_OPENMP)
-#pragma omp parallel for schedule(static)
-#endif
-      for (std::ptrdiff_t local_index = 0;
-           local_index < static_cast<std::ptrdiff_t>(tile_count);
-           ++local_index) {
-        const auto local = static_cast<std::size_t>(local_index);
-        const auto a = tasks[local] / virtuals;
-        const auto b = tasks[local] % virtuals;
-        auto& wabef_block = wabef_blocks[local];
-        for (std::size_t e = 0; e < virtuals; ++e)
-          for (std::size_t q = 0; q < virtuals; ++q) {
-            double value = eri(occupied + a, occupied + b, occupied + e,
-                               occupied + q);
-            for (std::size_t m = 0; m < occupied; ++m)
-              value -=
-                  t1(m, b) *
-                      eri(occupied + a, m, occupied + e, occupied + q) -
-                  t1(m, a) *
-                      eri(occupied + b, m, occupied + e, occupied + q);
-            for (std::size_t m = 0; m < occupied; ++m)
-              for (std::size_t n = 0; n < occupied; ++n)
-                value +=
-                    0.25 *
-                    tau_ab_scalars[local * pair_count + m * occupied + n] *
-                    eri(m, n, occupied + e, occupied + q);
-            wabef_block(e, q) = value;
-          }
-      }
     }
 
     for (std::size_t pair = 0; pair < pair_count; ++pair) {
@@ -2819,9 +2735,6 @@ std::string_view ccsd_wabef_packing_backend_name(
 template <typename Eri>
 double ccsd_energy_impl(const Matrix& fock, const Eri& eri, const Matrix& t1,
                         const Tensor4& t2, const std::size_t occupied) {
-  if constexpr (std::is_same_v<std::remove_cvref_t<Eri>, Tensor4>)
-    if (legacy_fortran_backend_available())
-      return legacy_fortran_ccsd_energy(fock, eri, t1, t2, occupied, false);
   const auto virtuals = t1.dimensions()[1];
   double energy = 0.0;
   for (std::size_t i = 0; i < occupied; ++i)

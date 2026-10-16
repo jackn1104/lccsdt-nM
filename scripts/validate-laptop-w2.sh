@@ -30,7 +30,7 @@ export MKL_NUM_THREADS=1
 export BLIS_NUM_THREADS=1
 mkdir -p runs
 campaign="$(mktemp -d "$PWD/runs/w2-validation.XXXXXX")"
-find CMakeLists.txt LICENSE NOTICES.md README.md .gitignore lccsdt apps src include kernels vendor tests scripts examples notices -type f ! -name '._*' ! -name '.DS_Store' ! -name '*.pyc' -print0 | xargs -0 shasum -a 256 > "$campaign/source.sha256"
+find CMakeLists.txt LICENSE README.md .gitignore lccsdt apps src include vendor tests scripts examples notices -type f ! -name '._*' ! -name '.DS_Store' ! -name '*.pyc' -print0 | xargs -0 shasum -a 256 > "$campaign/source.sha256"
 while IFS= read -r name; do unset "$name"; done < <(compgen -v CCSD_)
 echo "VALIDATION DIRECTORY: $campaign"
 echo "Physical threads=$threads; additional workspace=$memory_mib MiB; full PM nM; spin symmetry; resident triples"

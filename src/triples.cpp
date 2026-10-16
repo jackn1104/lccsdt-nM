@@ -1,6 +1,5 @@
 #include "localized_cc/triples.hpp"
 #include "localized_cc/diis.hpp"
-#include "localized_cc/legacy_fortran.hpp"
 
 #include <algorithm>
 #include <array>
@@ -107,7 +106,7 @@ TriplesResult solve_triples(const Matrix& f,const Tensor4& g,const Matrix& s,con
   out.solver_history=opt.initial_solver_history;if(!out.solver_history.empty()&&out.solver_history.size()!=opt.completed_iterations)throw std::invalid_argument("triples restart history/iteration mismatch");
   const auto iteration_limit=opt.initial_response?std::max(opt.max_iterations,opt.completed_iterations+2):opt.max_iterations;
   for(std::size_t it=opt.completed_iterations+1;it<=iteration_limit;++it){const auto ax=triples_fock_action(x,foo,fvv);std::vector<double> residual(x.size());for(std::size_t q=0;q<x.size();++q)residual[q]=-out.right_moment.data()[q]-ax.data()[q];out.residual_norm=norm(residual);out.solver_history.push_back(out.residual_norm);out.iterations=it;if(out.residual_norm<=opt.residual_tolerance*std::max(1.0,norm(out.right_moment.data())))out.converged=true;if(!out.converged){std::vector<double> next=x.data();for(std::size_t q=0;q<next.size();++q)next[q]+=residual[q]/(-d.data()[q]);if(it>=opt.diis_start)next=diis.extrapolate(next,residual);x.data()=std::move(next);}if(opt.observer&&(out.converged||opt.checkpoint_interval==0||it%opt.checkpoint_interval==0))opt.observer(TriplesProgress{it,out.residual_norm,out.converged,x,out.solver_history});if(out.converged)break;}
-  out.response=std::move(x);out.energy_contribution=Tensor6({o,o,o,v,v,v});for(std::size_t q=0;q<out.response.size();++q){out.energy_contribution.data()[q]=out.left_moment.data()[q]*out.response.data()[q]/36.0;if(!legacy_fortran_backend_available())out.energy+=out.energy_contribution.data()[q];}if(legacy_fortran_backend_available())out.energy=legacy_fortran_triples_energy(out.left_moment,out.response,false);return out;}
+  out.response=std::move(x);out.energy_contribution=Tensor6({o,o,o,v,v,v});for(std::size_t q=0;q<out.response.size();++q){out.energy_contribution.data()[q]=out.left_moment.data()[q]*out.response.data()[q]/36.0;out.energy+=out.energy_contribution.data()[q];}return out;}
 
 double triples_antisymmetry_error(const Tensor6& x){const auto d=x.dimensions();double e=0;for(std::size_t i=0;i<d[0];++i)for(std::size_t j=0;j<d[1];++j)for(std::size_t k=0;k<d[2];++k)for(std::size_t a=0;a<d[3];++a)for(std::size_t b=0;b<d[4];++b)for(std::size_t c=0;c<d[5];++c)e=std::max({e,std::abs(x(i,j,k,a,b,c)+x(j,i,k,a,b,c)),std::abs(x(i,j,k,a,b,c)+x(i,k,j,a,b,c)),std::abs(x(i,j,k,a,b,c)+x(i,j,k,b,a,c)),std::abs(x(i,j,k,a,b,c)+x(i,j,k,a,c,b))});return e;}
 } // namespace localized_cc
