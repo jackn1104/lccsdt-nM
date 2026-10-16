@@ -114,11 +114,8 @@ localization and verified point group task reuse. Candidate mappings exist
 for particular 3-, 4-, 6- and 8-water geometries, not every cluster of those
 sizes. Atom, orbital and Hamiltonian covariance checks must pass; coordinates
 are never snapped and ambiguous orbital maps fail. This mode uses the
-four-sector representation and requires memory for its resident triples.
+four sector representation and requires memory for its resident triples.
 
-**Point-group reuse is not implemented for the disk-backed propagation path.**
-The launcher rejects that combination rather than silently ignoring it.
-No claim is made that every possible symmetry is exploited.
 
 ## Checkpoints and restart
 
