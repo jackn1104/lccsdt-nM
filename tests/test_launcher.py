@@ -1,6 +1,10 @@
 """Public-interface contract tests; no molecular calculation is launched."""
 import importlib.machinery
 import importlib.util
+import contextlib
+import io
+import os
+import sys
 import tempfile
 import unittest
 from unittest.mock import patch
@@ -80,6 +84,67 @@ class LauncherContract(unittest.TestCase):
             cli.check_results(text.replace("(T) M1 -0.01", "(T) M1 -0.02"), 1, "full")
         with self.assertRaises(RuntimeError):
             cli.check_results(text.replace("localized (T) -0.01", "localized (T) nan"), 1, "full")
+
+    def test_concise_ccsd(self):
+        output = cli.ConciseOutput()
+        line = ("progress localized CCSD iteration 12; E=-0.45 Eh; dE=1e-9 Eh; "
+                "R1=1e-6; R2=2e-6; R1_measure=1e-9; R2_measure=2e-9; "
+                "backend=replicated exact; wall=20 s")
+        self.assertEqual(output.line(line), "CCSD iteration 12: E_corr=-0.45 Eh; "
+                         "dE=1e-9 Eh; R1(RMS)=1e-9; R2(RMS)=2e-9")
+        self.assertIn("CCSD convergence check 12", output.line(line.replace(
+            "iteration 12", "convergence check after iteration 12")))
+        self.assertIn("R1(L2)=1e-6", output.line(line.replace(
+            "R1_measure=1e-9; R2_measure=2e-9; ", "")))
+        self.assertEqual(output.line("progress localized CCSD converged"), "CCSD converged")
+        self.assertIn("reused", output.line("progress converged localized CCSD checkpoint "
+                                           "restored; CCSD iterations this run=0"))
+
+    def test_concise_laplace(self):
+        output = cli.ConciseOutput()
+        self.assertIsNone(output.line("progress Laplace triples point 3/7; sector=1 started"))
+        self.assertEqual(output.line("progress Laplace triples sector 1 complete"),
+                         "Laplace (T) sector 1: point 3/7 complete")
+        self.assertEqual(output.line("progress triples sector 0 point 7 restored; propagation skipped"),
+                         "Laplace (T) sector 0: point 7 restored")
+        self.assertEqual(output.line("progress orbital-invariant Laplace triples point 3/7 complete; "
+                                    "node=0.5, weight=0.1, seconds=2, M1=-0.01, M2=-0.02, "
+                                    "M3=0, M4=0, M5=0, M6=0"),
+                         "Laplace (T) point 3/7: energy contribution=-3.000000000000e-02 Eh")
+
+    def test_concise_summary_and_errors(self):
+        output = cli.ConciseOutput()
+        for line in ("RHF -152.0 Eh", "CCSD M4 -0.001 Eh", "(T) M5 -0.002 Eh",
+                     "(T) M6 -0.003 Eh", "wall time 12.5 s", "CCSD convergence threshold 1e-8",
+                     "fatal: checkpoint mismatch", "srun: error: task failed",
+                     "WARNING: limited memory", "AddressSanitizer:DEADLYSIGNAL"):
+            self.assertIsNotNone(output.line(line), line)
+        for line in ("CCSD kernel total this run 12 s", "progress RHF calculation started",
+                     "CCSD W_abef invariant cache 100 bytes", "", "unmeasured timing nan"):
+            self.assertIsNone(output.line(line), line)
+
+    def test_stream_modes_and_failure(self):
+        raw = "progress RHF calculation started\nRHF -1.0 Eh\nwarning: example warning\n"
+        with tempfile.TemporaryDirectory() as tmp:
+            concise_files = []
+            for verbose in (False, True):
+                log = Path(tmp) / f"raw-{verbose}.log"
+                out = Path(tmp) / f"clean-{verbose}.out"
+                terminal = io.StringIO()
+                command = [sys.executable, "-c", f"print({raw!r}, end='')"]
+                with contextlib.redirect_stdout(terminal):
+                    self.assertEqual(cli.stream_output(command, dict(os.environ), log, out, verbose), 0)
+                self.assertEqual(log.read_text(), raw)
+                concise_files.append(out.read_text())
+                self.assertEqual(terminal.getvalue(), raw if verbose else out.read_text())
+                with self.assertRaises(FileExistsError):
+                    cli.stream_output(command, dict(os.environ), log, out, verbose)
+            self.assertEqual(*concise_files)
+            log, out = Path(tmp) / "failure.log", Path(tmp) / "failure.out"
+            with contextlib.redirect_stdout(io.StringIO()):
+                self.assertEqual(cli.stream_output([sys.executable, "-c", "raise SystemExit(3)"],
+                                                  dict(os.environ), log, out, False), 3)
+            self.assertIn("exited with status 3", out.read_text())
 
 
 if __name__ == "__main__":

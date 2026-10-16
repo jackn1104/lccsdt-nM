@@ -158,6 +158,110 @@ def check_results(text: str, waters: int, stage: str) -> None:
             raise RuntimeError("total CCSD(T) energy does not close within 1e-7 Eh")
 
 
+class ConciseOutput:
+    """Presentation only; validation always consumes the untouched engine log."""
+
+    def __init__(self) -> None:
+        self.pending_points: dict[str, tuple[str, str]] = {}
+
+    def line(self, raw: str) -> str | None:
+        text = raw.strip()
+        if re.search(r"(?:^|\s)(?:fatal|warning|error):|AddressSanitizer:|"
+                     r"UndefinedBehaviorSanitizer:|runtime error:|"
+                     r"segmentation fault|MPI_Abort|Traceback", text, re.IGNORECASE):
+            return text
+        message = re.sub(r"^progress\s+", "", text)
+        if message == "localized CCSD iterations started":
+            return "CCSD iterations"
+        iteration = re.fullmatch(r"localized CCSD (iteration|convergence check after iteration) "
+                                 r"(\d+); (.*)", message)
+        if iteration:
+            fields = dict(part.strip().split("=", 1) for part in iteration[3].split(";")
+                          if "=" in part)
+            required = ("E", "dE", "R1", "R2")
+            if not all(key in fields for key in required):
+                return message  # Do not hide an unfamiliar iteration format.
+            rms = "R1_measure" in fields and "R2_measure" in fields
+            label = "RMS" if rms else "L2"
+            r1, r2 = (fields["R1_measure"], fields["R2_measure"]) if rms else (fields["R1"], fields["R2"])
+            prefix = (f"CCSD iteration {iteration[2]}" if iteration[1] == "iteration"
+                      else f"CCSD convergence check {iteration[2]}")
+            return (f"{prefix}: E_corr={fields['E']}; dE={fields['dE']}; "
+                    f"R1({label})={r1}; R2({label})={r2}")
+        if message == "localized CCSD converged":
+            return "CCSD converged"
+        if message == "converged localized CCSD checkpoint restored; CCSD iterations this run=0":
+            return "Converged CCSD checkpoint reused; CCSD iterations this run=0"
+        point = re.fullmatch(r"Laplace triples point (\d+)/(\d+); sector=(\d+) started", message)
+        if point:
+            self.pending_points[point[3]] = (point[1], point[2])
+            return None
+        sector = re.fullmatch(r"Laplace triples sector (\d+) complete", message)
+        if sector and sector[1] in self.pending_points:
+            number, count = self.pending_points.pop(sector[1])
+            return f"Laplace (T) sector {sector[1]}: point {number}/{count} complete"
+        restored = re.fullmatch(r"triples sector (\d+) point (\d+) restored; propagation skipped", message)
+        if restored:
+            return f"Laplace (T) sector {restored[1]}: point {restored[2]} restored"
+        combined = re.fullmatch(r"orbital-invariant Laplace triples point (\d+)/(\d+) complete; (.*)", message)
+        if combined:
+            parts = re.findall(r"(?:^|,\s*)M[1-6]=([-+0-9.eE]+)(?=,|$)", combined[3])
+            if parts:
+                energy = math.fsum(float(value) for value in parts)
+                return (f"Laplace (T) point {combined[1]}/{combined[2]}: "
+                        f"energy contribution={energy:.12e} Eh")
+            return f"Laplace (T) point {combined[1]}/{combined[2]} complete"
+        if message == "orbital-invariant streamed Laplace triples started":
+            return "Laplace (T) started"
+        if message == "orbital-invariant streamed Laplace triples complete":
+            return "Laplace (T) complete"
+        energy = re.fullmatch(r"(RHF|localized CCSD corr|localized \(T\)|localized CCSD\(T\)|"
+                              r"CCSD M[1-4]|\(T\) M[1-6])\s+([-+0-9.eE]+)\s+Eh", text)
+        if energy:
+            label = {"localized CCSD corr": "CCSD correlation", "localized (T)": "(T) correction",
+                     "localized CCSD(T)": "Total CCSD(T)"}.get(energy[1], energy[1])
+            return f"{label:<25} {energy[2]} Eh"
+        summary = re.fullmatch(r"(CCSD convergence threshold|CCSD completed iterations|"
+                               r"CCSD iterations this run|Laplace certified bound|"
+                               r"CCSD partition error|\(T\) partition error|wall time)\s+(.+)", text)
+        if summary:
+            label = {"Laplace certified bound": "Laplace quadrature bound"}.get(summary[1], summary[1])
+            return f"{label:<27} {summary[2]}"
+        return None
+
+
+def stream_output(argv: list[str], env: dict[str, str], log_path: Path,
+                  output_path: Path, verbose: bool) -> int:
+    formatter = ConciseOutput()
+    with log_path.open("x") as log, output_path.open("x") as output:
+        child = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE,
+                                 stderr=subprocess.STDOUT, text=True, bufsize=1)
+        try:
+            assert child.stdout is not None
+            for line in child.stdout:
+                log.write(line)
+                log.flush()
+                concise = formatter.line(line)
+                if concise is not None:
+                    output.write(concise + "\n")
+                    output.flush()
+                if verbose:
+                    print(line, end="", flush=True)
+                elif concise is not None:
+                    print(concise, flush=True)
+            status = child.wait()
+            if status:
+                output.write(f"error: calculation exited with status {status}; diagnostics: {log_path}\n")
+            return status
+        except BaseException:
+            child.terminate()
+            child.wait()
+            raise
+        finally:
+            if child.stdout is not None:
+                child.stdout.close()
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description=__doc__)
     sub = parser.add_subparsers(dest="action", required=True)
@@ -182,6 +286,10 @@ def main() -> int:
     restart_parser.add_argument("directory", type=Path)
     restart_parser.add_argument("--triples-only", action="store_true",
                                 help="require converged saved CCSD; never refine it")
+    for command_parser in (run_parser, restart_parser):
+        command_parser.add_argument("--verbose", action="store_true",
+                                    help="show full diagnostics (always saved in progress-*.log); "
+                                         "concise output is saved in output-*.out")
     args = parser.parse_args()
     if any(int(os.environ.get(key, "1")) > 1
            for key in ("OMPI_COMM_WORLD_SIZE", "PMI_SIZE")):
@@ -214,6 +322,7 @@ def main() -> int:
         config.pop("geometry")
         config.pop("output")
         config.pop("build")
+        config.pop("verbose")  # Display preference is not a scientific/restart setting.
         config.update(format=1, basis=BASES[args.basis], engine=str(engine),
                       engine_sha256=digest(engine), geometry_sha256=digest(geometry),
                       launcher_sha256=digest(Path(__file__)),
@@ -263,26 +372,17 @@ def main() -> int:
         argv = command(config, run, restarting)
         stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
         log_path = run / f"progress-{stamp}.log"
+        output_path = run / f"output-{stamp}.out"
         with (run / f"launch-{stamp}.json").open("x") as record:
-            json.dump({"argv": argv, "scientific_environment":
+            json.dump({"argv": argv, "verbose": args.verbose,
+                       "output": output_path.name, "diagnostics": log_path.name,
+                       "scientific_environment":
                        {k: v for k, v in env.items() if k.startswith(("CCSD_", "OMP_"))}},
                       record, indent=2, sort_keys=True)
-        print(f"RUN DIRECTORY: {run}\nLIVE LOG: {log_path}", flush=True)
-        print("Full PM nM; spatial CCSD; Laplace triples; no density fitting.", flush=True)
-        with log_path.open("x") as log:
-            child = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE,
-                                     stderr=subprocess.STDOUT, text=True, bufsize=1)
-            try:
-                assert child.stdout is not None
-                for line in child.stdout:
-                    log.write(line)
-                    log.flush()
-                    print(line, end="", flush=True)
-                status = child.wait()
-            except BaseException:
-                child.terminate()
-                child.wait()
-                raise
+        if args.verbose:
+            print(f"RUN DIRECTORY: {run}\nLIVE LOG: {log_path}\nOUTPUT: {output_path}", flush=True)
+            print("Full PM nM; spatial CCSD; Laplace triples; no density fitting.", flush=True)
+        status = stream_output(argv, env, log_path, output_path, args.verbose)
         if status:
             raise RuntimeError(f"calculation exited with status {status}; preserve {run}")
         text = log_path.read_text()
@@ -292,8 +392,9 @@ def main() -> int:
             raise RuntimeError("triples-only restart did not confirm zero CCSD iterations")
         marker = "COMPLETE" if stage == "full" else "CCSD_COMPLETE"
         with (run / marker).open("w" if restarting else "x") as out:
-            out.write(f"engine_exit=0\nlog={log_path.name}\n")
-        print(f"Completed {stage} stage. Results: {log_path}")
+            out.write(f"engine_exit=0\nlog={log_path.name}\noutput={output_path.name}\n")
+        if args.verbose:
+            print(f"Completed {stage} stage. Results: {log_path}")
     return 0
 
 
