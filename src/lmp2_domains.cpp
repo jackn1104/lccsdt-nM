@@ -87,9 +87,9 @@ Lmp2DomainResult select_lmp2_domains(const Matrix& foo,const Matrix& fvv,
   // conservative per-element map/output allowance. Excludes caller ERIs.
   const auto bound=add(mul(count,1024),mul(add(mul(o,o),mul(v,v)),128));
   if(bound>opt.maximum_workspace_bytes)
-    throw std::runtime_error("LMP2 admission workspace exceeds configured cap; no allocation attempted");
+    throw std::runtime_error("LMP2 domain-selection workspace exceeds configured cap; no allocation attempted");
   if(count>static_cast<std::size_t>(std::numeric_limits<int>::max()))
-    throw std::overflow_error("LMP2 admission tensor exceeds BLAS integer range");
+    throw std::overflow_error("LMP2 domain-selection tensor exceeds BLAS integer range");
   const auto fo=checked_fock(foo,o),fv=checked_fock(fvv,v);
   const auto eo=modernqc::linalg::diagonalize_symmetric(fo);
   const auto ev=modernqc::linalg::diagonalize_symmetric(fv);
@@ -240,6 +240,6 @@ void write_lmp2_domain_audit(const std::filesystem::path& directory,
    <<"\nworkspace_upper_bytes="<<r.workspace_upper_bytes
    <<"\nretained_elements="<<r.retained_elements
    <<"\nfull_elements="<<r.amplitudes.size()<<"\nprovenance="<<provenance<<'\n';m.close();
-  auto done=output(directory/"COMPLETE");done<<"LMP2 domain pilot complete; CCSD(T) admission remains pending\n";done.close();
+  auto done=output(directory/"COMPLETE");done<<"LMP2 domain pilot complete; domains not yet validated for CCSD(T) accuracy\n";done.close();
 }
 } // namespace localized_cc

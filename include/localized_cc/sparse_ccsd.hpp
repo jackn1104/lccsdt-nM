@@ -13,10 +13,9 @@
 
 namespace localized_cc {
 
-// Baseline traffic record for one explicit sparse-CCSD phase cache fill. The
-// current executor still replicates every declared source block at these
-// boundaries. These counters make that cost visible before Stage A replaces
-// the replication with fail-closed dependency caches.
+// Communication statistics for one sparse-CCSD phase cache fill. The executor
+// replicates every declared source block at these boundaries; these counters
+// report that cost.
 struct SparseCcsdPhaseStatistics {
   std::size_t iteration{};
   std::string phase;
@@ -78,9 +77,7 @@ struct SparseCcsdResult {
 // loop. Integral access is fail-closed against the equation dependency plan
 // and reconstructs antisymmetrized spin values from selected spatial
 // chemists' blocks. The current producer packs those blocks from the supplied
-// exact spatial Hamiltonian. Its distributed AO-direct successor must pass
-// the same gate before this executor may claim pre-transformation AO-to-MO
-// sparsity.
+// exact spatial Hamiltonian; this does not avoid the initial AO-to-MO work.
 [[nodiscard]] SparseCcsdResult solve_sparse_ccsd(
     const SpatialRhfHamiltonian& hamiltonian,
     const SelectedCcsdManifoldPlan& plan,

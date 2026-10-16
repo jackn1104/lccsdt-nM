@@ -578,12 +578,8 @@ double nonnegative_double_from_environment(const char* name,
 // screen and is unrelated to the monomer-span selection, which truncates the
 // amplitude manifold instead.
 //
-// Zero is the default and disables the screen, which keeps the strict
-// canonical gate exact.  Note the ceiling on what this can buy: screening
-// applies only to stages that evaluate atomic-orbital quartets, which on the
-// recorded four-node W2/aVDZ run were RHF, the AO integrals, and the MO
-// Hamiltonian -- together about 72 s of 1591 s.  It does not touch the CCSD
-// iterations that dominate the runtime.
+// Zero is the default and disables screening for reference comparisons.
+// Screening affects AO shell-quartet evaluation, not the CCSD iterations.
 double ao_schwarz_threshold_from_environment() {
   return nonnegative_double_from_environment("CCSD_AO_SCHWARZ_THRESHOLD", 0.0);
 }
@@ -693,7 +689,7 @@ std::string_view ccsd_solver_backend_name(const CcsdSolverBackend backend) {
   case CcsdSolverBackend::spin_orbital:
     return "spin-orbital";
   case CcsdSolverBackend::legacy_spatial:
-    return "legacy closed-shell spatial admission";
+    return "closed-shell spatial solver";
   }
   throw std::invalid_argument("unknown CCSD solver backend");
 }
@@ -1015,7 +1011,7 @@ int main(int argc, char** argv) {
     if(lmp2_adaptive&&(!lmp2_domain_audit||lmp2_preintegral))
       throw std::invalid_argument("adaptive MP2 requires audit-only and cannot combine with preintegral pilot");
     if(lmp2_preintegral&&!lmp2_domain_audit)
-      throw std::invalid_argument("preintegral LMP2 currently requires CCSD_LMP2_DOMAIN_AUDIT_ONLY=1; no production mask is admitted");
+      throw std::invalid_argument("preintegral LMP2 requires CCSD_LMP2_DOMAIN_AUDIT_ONLY=1; the selected domains are not applied to CCSD(T)");
     if (lmp2_domain_audit &&
         (mode != RunMode::localized || localizer != Localizer::pm ||
          ccsd_solver_basis != CcsdSolverBasis::localized ||
@@ -1167,9 +1163,9 @@ int main(int argc, char** argv) {
             SelectedIntegralBackend::ao_direct_selected &&
         execution_stage != ExecutionStage::ccsd_only)
       throw std::invalid_argument(
-          "the AO-direct selected-integral admission gate currently "
+          "the AO-direct selected-integral backend currently "
           "supports CCSD_EXECUTION_STAGE=ccsd-only; selected Laplace "
-          "triples must pass its separate fail-closed integral gate before "
+          "triples require separate integral validation before "
           "a full CCSD(T) run is enabled");
     const auto replicated_t2_max_mib =
         mib_from_environment("CCSD_REPLICATED_T2_MAX_MIB", 512, true);
@@ -1621,9 +1617,9 @@ int main(int argc, char** argv) {
           options.use_direct_spatial_singles = native_spatial_pairs;
           options.use_direct_spatial_doubles = native_spatial_pairs;
           if (native_spatial_pairs)
-            report_progress("CCSD native spatial pairs enabled; iterative spin T1/T2 expansion=none; spatial BLAS panels; admission pending");
+            report_progress("CCSD native spatial pairs enabled; iterative spin T1/T2 expansion=none; spatial BLAS panels; requires residual validation before production use");
           if (compact_spatial_doubles)
-            report_progress("CCSD compact spatial doubles enabled; Fock corrections cached per evaluation; mixed-pair spin sums use DGEMM; full equations; molecular admission pending");
+            report_progress("CCSD compact spatial doubles enabled; Fock corrections cached per evaluation; mixed-pair spin sums use DGEMM; full equations; requires molecular residual validation before production use");
           if (native_spatial_pairs)
             report_progress("native spatial timing: W_abef total is measured; build/BLAS subphase fields are uninstrumented (zero is not a timing measurement); spatial workspace field excludes transient pair matrices");
           options.use_incremental_diis_gram =
@@ -3270,7 +3266,7 @@ int main(int argc, char** argv) {
               << diagnostics.avoided_full_active_mo_eri_bytes
               << "; estimated_peak_bytes="
               << diagnostics.estimated_peak_bytes
-              << "; integral_storage=replicated admission boundary\n";
+              << "; integral_storage=replicated\n";
         } else if (localized_hamiltonian_rotation) {
           std::cout
               << "progress                   canonical-to-PM four-index "
@@ -3333,7 +3329,7 @@ int main(int argc, char** argv) {
           std::cout<<"LMP2 retained elements "<<pilot.retained_elements<<"/"<<pilot.amplitudes.size()
               <<"\nLMP2 fixed-amplitude omission bound "<<pilot.omission_bound<<" Eh\n"
               <<"LMP2 domain audit directory "<<audit_path<<"\n"
-              <<"LMP2 domain pilot complete; candidate only; CCSD(T) accuracy admission pending\n"<<std::flush;
+              <<"LMP2 domain pilot complete; domains not yet validated for CCSD(T) accuracy\n"<<std::flush;
         } catch(const std::exception& e) {status[0]=1;failure=e.what();}
         localized_cc::parallel::broadcast_in_place(status);
         if(status[0]) throw std::runtime_error(communicator.rank==0?failure:
@@ -3349,7 +3345,7 @@ int main(int argc, char** argv) {
       if (use_pm_task_symmetry) {
         if (localizer != Localizer::pm || use_selected_kernel || use_block_sparse_ccsd ||
             use_ao_direct_selected_integrals || use_exact_spin_manifold)
-          throw std::invalid_argument("PM symmetry admission requires unprojected PM full-space dense-oracle execution");
+          throw std::invalid_argument("PM symmetry requires unprojected PM full-space dense-oracle execution");
         report_progress("W"+std::to_string(pm_water_cycle.size())+
             " PM symmetry mapping and exhaustive Hamiltonian covariance audit started");
         auto verified=localized_cc::cyclic_adapted_permutation(
@@ -3937,7 +3933,7 @@ int main(int argc, char** argv) {
               << "CCSD integral backend      "
               << (use_ao_direct_selected_integrals
                       ? "AO-direct selected spatial blocks; replicated "
-                        "admission boundary"
+                        "storage"
                       : "dense spatial Hamiltonian oracle")
               << "\n"
               << "localized Hamiltonian backend "
@@ -4430,7 +4426,7 @@ int main(int argc, char** argv) {
           if (std::filesystem::exists(energy_path) ||
               std::filesystem::exists(orbital_path))
             throw std::runtime_error(
-                "refusing to overwrite existing Phase 12 CSV output");
+                "refusing to overwrite existing partition CSV output");
           localized_cc::write_partition_csv(energy_path, *ccsd_partition,
                                              *triples_partition);
           localized_cc::write_orbital_assignments_csv(
@@ -4986,13 +4982,13 @@ int main(int argc, char** argv) {
                                    after_localized_triples)
                 << " s\n";
         if (partition_prefix != "none" && triples_partition)
-          std::cout << "Phase 12 energy CSV       " << partition_prefix
+          std::cout << "Partition energy CSV      " << partition_prefix
                     << ".energy.csv\n"
-                    << "Phase 12 orbital CSV      " << partition_prefix
+                    << "Partition orbital CSV     " << partition_prefix
                     << ".orbitals.csv\n";
         else if (partition_prefix != "none")
           std::cout
-              << "Phase 12 CSV status        not written: exact streamed "
+              << "Partition CSV status       not written: exact streamed "
                  "(T) nM partition is unfinished\n";
       }
     }

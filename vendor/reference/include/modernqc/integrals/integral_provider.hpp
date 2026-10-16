@@ -76,8 +76,7 @@ struct ValidationAoEriTensor {
 //
 //   T[p,nu,lambda,sigma] = sum_mu C[mu,p] (mu nu|lambda sigma).
 //
-// This is the semidirect production boundary used by CCSD(T): AO shell
-// quartets are evaluated directly and no AO four-index tensor is formed.
+// AO shell quartets are evaluated directly; no AO four-index tensor is formed.
 // Different MPI ranks may request disjoint orbital_indices and assemble the
 // remaining three transformations collectively in their orchestration layer.
 struct FirstIndexTransformedEriResult {

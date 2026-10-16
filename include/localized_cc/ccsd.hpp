@@ -56,8 +56,7 @@ enum class CcsdWabefBackend { cpu, tiled_cpu, cuda };
 
 // Controls only how exact, iteration-invariant ERI slices used by the tiled
 // W_abef executor are supplied. Both paths evaluate the same dense CCSD
-// equations. The cached path is intentionally opt-in until its molecular
-// performance gate passes.
+// equations. The cached path is opt-in; benchmark it for the target system.
 enum class CcsdWabefPackingBackend { direct, cached_invariants };
 
 [[nodiscard]] std::string_view

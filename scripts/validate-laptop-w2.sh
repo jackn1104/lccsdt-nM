@@ -58,4 +58,3 @@ python3 scripts/check_restart.py "$campaign/calculation" "$campaign/restart-chec
 shasum -a 256 -c "$campaign/source.sha256" > "$campaign/source-verification.log"
 printf '%s\n' "$campaign" > runs/last-validated.txt
 echo "VALIDATION PASSED: $campaign/calculation/W2_VALIDATED.json"
-echo 'No public repository was created. Inspect these results before publishing.'

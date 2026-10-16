@@ -122,7 +122,7 @@ std::vector<int> find_cyclic_water_cycle(
     const std::vector<std::array<double,3>>& xyz,
     const std::vector<int>& numbers) {
   require((xyz.size() == 9 || xyz.size() == 12) && numbers.size() == xyz.size(),
-          "cyclic PM symmetry admission requires exactly three or four waters");
+          "cyclic PM symmetry requires exactly three or four waters");
   const auto order = xyz.size()/3;
   for (std::size_t p=0; p<xyz.size(); ++p) {
     require(numbers[p] == (p%3 == 0 ? 8 : 1),
@@ -178,7 +178,7 @@ std::vector<int> find_cyclic_water_cycle(
 std::array<int,4> find_w4_water_cycle(
     const std::vector<std::array<double,3>>& xyz,
     const std::vector<int>& numbers) {
-  require(xyz.size()==12,"W4 PM symmetry admission requires exactly four waters");
+  require(xyz.size()==12,"W4 PM symmetry requires exactly four waters");
   const auto cycle=find_cyclic_water_cycle(xyz,numbers);
   return {cycle[0],cycle[1],cycle[2],cycle[3]};
 }

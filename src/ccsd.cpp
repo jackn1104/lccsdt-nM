@@ -2902,7 +2902,7 @@ CcsdResult solve_ccsd_impl(const Matrix& fock, const Eri& eri,
   if (options.audit_compact_spatial_doubles || options.use_compact_spatial_doubles)
     throw std::invalid_argument("compact spatial doubles requires the spatial solver");
   if (options.pm_symmetry)
-    throw std::invalid_argument("PM symmetry admission requires the spatial CCSD solver");
+    throw std::invalid_argument("PM symmetry requires the spatial CCSD solver");
   const auto orbitals = fock.dimensions()[0];
   if (fock.dimensions()[1] != orbitals ||
       eri.dimensions() !=
@@ -3319,7 +3319,7 @@ CcsdResidualEvaluation evaluate_ccsd_residual(
     const CcsdOptions& options) {
   validate_wabef_pair_symmetry_options(options);
   if (options.pm_symmetry)
-    throw std::invalid_argument("PM symmetry residual admission requires the spatial Hamiltonian interface");
+    throw std::invalid_argument("PM symmetry residuals require the spatial Hamiltonian interface");
   const auto orbitals = fock.dimensions()[0];
   if (fock.dimensions()[1] != orbitals || occupied == 0 ||
       occupied >= orbitals)
