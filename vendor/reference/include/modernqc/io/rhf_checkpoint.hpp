@@ -90,8 +90,8 @@ void write_rhf_checkpoint(const std::filesystem::path& path,
 [[nodiscard]] LaplaceMp2Checkpoint read_laplace_mp2_checkpoint(
     const std::filesystem::path& path);
 
-// Transactional Phase 11 sidecar. Periodic writes replace the destination
-// only after the temporary HDF5 file has been flushed and read back.
+// Transactional tiled Laplace-MP2 restart file. Periodic writes replace the
+// destination only after the temporary HDF5 file has been flushed and read back.
 void write_tiled_laplace_mp2_restart(
     const std::filesystem::path& path,
     const mp2::TiledLaplaceMp2Progress& progress, bool overwrite);

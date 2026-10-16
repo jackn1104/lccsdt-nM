@@ -212,7 +212,7 @@ Lmp2SelectedOvov build_lmp2_selected_ovov(
   } catch(const std::exception& e) {error=e.what();}
   std::vector<double> failed{error.empty()?0.:1.};parallel::sum_in_place(failed);
   if(failed[0]) throw std::runtime_error(error.empty()?"selected LMP2 transform failed on another rank":error);
-  // Admission boundary: selected blocks replicated only after all AO work.
+  // Selected blocks are replicated only after all AO work is complete.
   // No MPI calls inside the integral-contraction loop.
   parallel::sum_in_place(result.values);
   for(double x:result.values) finite(x);

@@ -136,7 +136,7 @@ Tensor4 spatial_tiled_pair_terms(const SpatialRhfHamiltonian& h,
     validate_pm_symmetry_group(*options.pm_symmetry);
     if(options.pm_symmetry->occupied!=o || options.pm_symmetry->virtuals!=v)
       throw std::invalid_argument("native spatial PM group dimension mismatch");
-    // Same covariance admission as the spin executor, checked without expansion.
+    // Check the spin executor's covariance conditions without spin expansion.
     for (const auto& g:options.pm_symmetry->operations) {
       for (std::size_t i=0;i<o;++i) for (std::size_t a=0;a<v;++a) {
         const auto gi=g.image[i], ga=g.image[o+a]-o;

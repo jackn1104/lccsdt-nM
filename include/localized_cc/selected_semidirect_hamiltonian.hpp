@@ -42,9 +42,8 @@ struct SelectedSpatialHamiltonian {
 // planned before this call. Only its spatial chemists' ERI blocks are
 // completed; the full active-space MO four-index tensor is never allocated.
 // Every selected value is computed by one first-index owner and is then
-// assembled collectively into the current fail-closed replicated store. This
-// replication is an explicit admission boundary; the later phase-cache gate
-// will replace it with distributed block ownership without changing values.
+// assembled collectively into a fail-closed replicated store. Selected
+// integral storage is replicated, not distributed across block owners.
 SelectedSpatialHamiltonian build_selected_semidirect_spatial_hamiltonian(
     const modernqc::scf::RhfResult& rhf,
     modernqc::integrals::Libint2IntegralProvider& integrals,

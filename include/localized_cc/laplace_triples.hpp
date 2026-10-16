@@ -23,10 +23,9 @@ enum class LaplaceTriplesQuadratureScheme {
 [[nodiscard]] const char* laplace_triples_quadrature_scheme_name(
     LaplaceTriplesQuadratureScheme scheme);
 
-// Phase 14E numerical oracle for the orbital-invariant Laplace resolvent used
+// Numerical reference for the orbital-invariant Laplace resolvent used
 // by localized CCSD(T). This dense implementation is intentionally guarded:
-// it validates the equations and quadrature before the same contractions are
-// admitted to the distributed block-sparse production path.
+// it provides equation and quadrature checks for optimized contractions.
 struct LaplaceTriplesOptions {
   std::size_t quadrature_points{7};
   LaplaceTriplesQuadratureScheme quadrature_scheme{

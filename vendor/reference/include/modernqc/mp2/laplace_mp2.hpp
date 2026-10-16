@@ -32,7 +32,7 @@ struct IncoreLaplaceMp2Result {
   std::size_t quadrature_points;
 };
 
-// Validation-only in-core Laplace MP2 over the Phase 8 OVOV tensor.
+// Validation-only in-core Laplace MP2 over a stored OVOV tensor.
 [[nodiscard]] IncoreLaplaceMp2Result compute_incore_laplace_mp2(
     const CanonicalMp2Result& canonical_mp2,
     const std::vector<double>& orbital_energies,

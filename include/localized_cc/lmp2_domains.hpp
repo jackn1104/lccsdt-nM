@@ -9,7 +9,7 @@
 
 namespace localized_cc {
 
-// Stage-1 admission interface: spatial G(i,j,a,b)=(ia|jb), real RHF,
+// Domain-selection reference interface: spatial G(i,j,a,b)=(ia|jb), real RHF,
 // unchanged PM orbitals/labels. The provider must supply four-center ERIs.
 // This bounded dense-amplitude pilot is not the production sparse solver.
 using Mp2Integral = std::function<double(std::size_t,std::size_t,

@@ -50,7 +50,7 @@ struct CanonicalTriplesOptions {
   double denominator_floor{1.0e-10};
   std::size_t occupied_task_grain{1};
   CanonicalTriplesBackend backend{CanonicalTriplesBackend::reference_cpu};
-  // The Phase 15B tiled paths compute the parenthetical CCSD(T) correction
+  // The tiled paths compute the parenthetical CCSD(T) correction
   // only. The reference CPU path can retain CCSD[T] for regression tests.
   bool compute_bracket{true};
   std::size_t virtual_tile_size{64};

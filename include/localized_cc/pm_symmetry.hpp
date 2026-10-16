@@ -8,8 +8,8 @@
 namespace localized_cc {
 
 // Real, spatial active orbitals: occupied followed by virtual. No rotations
-// between orbitals are approximated by permutations. The initial admission
-// path supports cyclic order-two, order-three and order-four groups only.
+// between orbitals are approximated by permutations. This path supports
+// cyclic order-two, order-three and order-four groups only.
 struct PmSymmetryOperation {
   std::vector<std::size_t> image;
   std::vector<int> sign;

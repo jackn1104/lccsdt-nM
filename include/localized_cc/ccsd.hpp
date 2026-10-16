@@ -202,7 +202,7 @@ struct CcsdOptions {
   CcsdWabefPackingBackend wabef_packing_backend{
       CcsdWabefPackingBackend::direct};
   // Exact external virtual-pair antisymmetry: compute a<b once and restore
-  // the (b,a) contribution with opposite sign. Admission option restricted
+  // the (b,a) contribution with opposite sign. This option is restricted
   // to unprojected, replicated, cached tiled-CPU execution.
   bool use_wabef_pair_symmetry{false};
   // Verified real signed PM orbital group. Full-space spatial solver only;
@@ -219,8 +219,7 @@ struct CcsdOptions {
   // intermediate. The scalar implementation remains the equation oracle.
   bool use_tiled_intermediates{false};
   // Opt-in occupied-pair/BLAS executor for the non-W_abef doubles terms.
-  // The scalar path remains the default equation oracle until the molecular
-  // performance gate passes.
+  // The scalar path is the default equation reference for validation.
   bool use_tiled_doubles{false};
   // Exact non-VVVV spatial panels used only by SelectedIntegralStore in the
   // tiled intermediate and doubles phases. A zero value or an insufficient
@@ -233,15 +232,17 @@ struct CcsdOptions {
   // Small-system spatial equation oracle: evaluate every independent R2
   // element from spatial amplitudes with cyclic MPI ownership and no
   // spin-expanded amplitudes or four-index spin intermediates. This path is
-  // intentionally not a production kernel until tiled contractions replace
-  // its on-demand intermediate evaluation.
+  // a reference kernel with on-demand intermediate evaluation, not a tiled
+  // production kernel.
   bool use_direct_spatial_doubles{false};
   // Opt-in exact spatial pair executor: cache SU(2) intermediate channels and
   // use bounded DGEMM panels, without expanding iterative T1/T2 into spin
-  // storage. Requires direct spatial singles/doubles; admission pending.
+  // storage. Requires direct spatial singles/doubles and residual validation
+  // against the reference executor before production use.
   bool use_tiled_spatial_pairs{false};
   // Opt-in non-PM-orbit kernel: analytically spin-summed non-pair R2 and
-  // DGEMM mixed-pair intermediates. Same full equations; NERSC gate required.
+  // DGEMM mixed-pair intermediates. Same full equations; requires molecular
+  // residual validation before production use.
   bool use_compact_spatial_doubles{false};
   // Compare first and converged molecular residuals with the old native path
   // at identical amplitudes; excludes oracle time from kernel subphase timers.
@@ -326,9 +327,8 @@ struct CcsdResidualEvaluation {
 };
 
 // Exact closed-shell spatial residual extracted from the retained
-// spin-orbital equation oracle.  This is the admission boundary for the
-// production spin-adapted executor: optimized spatial contractions must
-// reproduce every element before they can replace the oracle.
+// spin-orbital equation oracle. Optimized spatial contractions must reproduce
+// every element within the validation tolerance before replacing this reference.
 struct SpatialRccsdResidualEvaluation {
   Matrix r1;
   Tensor4 r2;
@@ -399,10 +399,9 @@ evaluate_spatial_rccsd_doubles_direct(
     const SpatialRccsdAmplitudes& amplitudes,
     const CcsdOptions& options = {});
 
-// Exact admission solver with spatial T1/T2 and DIIS storage. Its residual
-// can use either the retained spin-orbital oracle or the opt-in direct spatial
-// R1/R2 equation oracles. Neither choice is yet the production low-cost tiled
-// spatial contraction executor.
+// Exact reference solver with spatial T1/T2 and DIIS storage. Residual options
+// include the retained spin-orbital reference, direct spatial R1/R2 references,
+// and opt-in tiled spatial contractions.
 [[nodiscard]] SpatialRccsdResult solve_spatial_rccsd_reference(
     const SpatialRhfHamiltonian& hamiltonian,
     const CcsdOptions& options = {});

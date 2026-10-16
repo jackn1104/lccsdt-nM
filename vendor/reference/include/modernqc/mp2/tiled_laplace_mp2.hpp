@@ -59,7 +59,7 @@ struct TiledLaplaceMp2Result {
   TiledLaplaceMp2Progress progress;
 };
 
-// Production Phase 11 canonical-orbital Laplace MP2. AO integrals are
+// Canonical-orbital Laplace MP2. AO integrals are
 // transformed directly into bounded OVOV tiles; no AO or global OVOV
 // four-index tensor is formed. MPI ownership is cyclic in global tile order.
 [[nodiscard]] TiledLaplaceMp2Result compute_tiled_laplace_mp2(

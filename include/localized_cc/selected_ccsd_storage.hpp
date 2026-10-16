@@ -25,9 +25,9 @@ using SelectedSpatialIntegralBlockProducer = std::function<
 // Fail-closed, read-only storage for the spatial chemists' ERI blocks needed
 // by the selected spin-orbital CCSD equation dependency closure.  A requested
 // antisymmetrized spin integral is reconstructed from at most two spatial
-// blocks, without storing the sixteen-fold spin expansion.  The current
-// constructor packs an exact dense SpatialRhfHamiltonian and is the numerical
-// oracle for the later AO-direct, owner-computes selected-block producer.
+// blocks, without storing the sixteen-fold spin expansion. The dense
+// constructor packs an exact SpatialRhfHamiltonian and provides a numerical
+// reference for the selected-block producer constructor.
 // Values outside the declared spin closure are not represented and an
 // attempted access throws instead of silently returning zero or falling back
 // to a dense ERI.

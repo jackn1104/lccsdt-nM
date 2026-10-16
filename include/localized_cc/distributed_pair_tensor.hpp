@@ -111,7 +111,7 @@ struct DistributedPairDiisMemory {
   std::size_t singles_history_bytes_per_rank{};
 };
 
-// Phase 14 DIIS store. T1 history remains replicated because it is O(ov); T2
+// Distributed DIIS store. T1 history remains replicated because it is O(ov); T2
 // vector and error histories are stored as GA (ia,jb) arrays. The distributed
 // overload writes its extrapolated T2 directly to another GA pair tensor.
 class GlobalArraysPairDiis {
