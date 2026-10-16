@@ -14,7 +14,7 @@ namespace modernqc::mp2 {
 enum class LocalizedLaplaceMp2Backend {
   automatic,
   direct_tiled,
-  // Experimental comparison backend for 1M+2M only. Monomer assignments
+  // Opt-in comparison backend for 1M+2M only. Monomer assignments
   // define the retained localized orbital blocks before any OVOV tensor is
   // formed. Each rank evaluates AO shell quartets once per Laplace point for
   // its occupied slice, reuses the exact two-index-transformed intermediate

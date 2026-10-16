@@ -24,9 +24,8 @@ if(NOT integral_target)
   message(FATAL_ERROR "The integral library exports no supported CMake target")
 endif()
 
-# Retain the full numerical driver. Experimental internal helpers remain
-# linked because the molecular driver references them; the public launcher
-# exposes only the complete-space model.
+# The molecular driver also references domain-analysis helpers. The public
+# launcher exposes only the complete-space model.
 file(GLOB core_sources CONFIGURE_DEPENDS "src/*.cpp")
 set(reference_sources
   basis/libint2_basis_builder.cpp integrals/libint2_provider.cpp

@@ -124,8 +124,8 @@ struct OvovTileOptions {
   //     = sum_{mu,nu} C_occ[mu,i] C_vir[nu,a]
   //       (mu nu|lambda sigma)
   //
-  // from the separable four-pass route. This is an experimental streaming
-  // boundary used to form multiple selected localized OVOV tiles without
+  // from the separable four-pass route. This opt-in streaming interface
+  // forms multiple selected localized OVOV tiles without
   // revisiting AO shell quartets. It is not a density-fitted or three-index
   // ERI representation. The option requires the separable route.
   bool retain_left_pair_ao_intermediate{false};

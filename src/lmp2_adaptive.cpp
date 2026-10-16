@@ -143,7 +143,7 @@ Mp2AdaptiveResult solve_adaptive_mp2(const Matrix& foo,const Matrix& fvv,const M
     if(static_cast<long double>(predicted)>=0.8L*result.full_elements) {
       for(const auto& [key,tile]:all) wanted.insert(orbit(key));
       result.full_domain_fallback=true;
-    } else wanted=initial_wanted; // keep a sparse pilot when the forecast is sparse
+    } else wanted=initial_wanted; // retain the initial sparse selection
   }
   for(const auto& [key,tile]:all) if(wanted.count(orbit(key))) result.initial_elements+=elements(tile);
   if(progress&&opt.efficient_planning) progress("adaptive MP2 preflight selected="+

@@ -317,7 +317,7 @@ void run_lmp2_preintegral_pilot(
       std::ostringstream s;s<<std::setprecision(17)<<"preintegral LMP2 M"<<n+1<<"="<<result.full_nm[n]<<" Eh";progress(s.str());
     }
     std::ofstream done(plan_dir/"COMPLETE");done.exceptions(std::ios::failbit|std::ios::badbit);
-    done<<"MP2 source selection complete; domains not yet validated for CCSD(T) accuracy\n";done.close();
+    done<<"MP2 source selection complete; MP2 error bounds do not establish CCSD(T) accuracy\n";done.close();
   } catch(const std::exception& e) {status[0]=1;failure=e.what();}
   parallel::broadcast_in_place(status);
   if(status[0]) throw std::runtime_error(world.rank==0?failure:"preintegral MP2 root solve failed");

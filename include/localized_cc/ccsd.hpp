@@ -237,11 +237,11 @@ struct CcsdOptions {
   // Opt-in exact spatial pair executor: cache SU(2) intermediate channels and
   // use bounded DGEMM panels, without expanding iterative T1/T2 into spin
   // storage. Requires direct spatial singles/doubles and residual validation
-  // against the reference executor before production use.
+  // against the reference executor for the target system.
   bool use_tiled_spatial_pairs{false};
   // Opt-in non-PM-orbit kernel: analytically spin-summed non-pair R2 and
   // DGEMM mixed-pair intermediates. Same full equations; requires molecular
-  // residual validation before production use.
+  // residual validation for the target system.
   bool use_compact_spatial_doubles{false};
   // Compare first and converged molecular residuals with the old native path
   // at identical amplitudes; excludes oracle time from kernel subphase timers.

@@ -65,7 +65,7 @@ Lmp2SelectedOvov build_lmp2_selected_ovov(
     std::size_t threads,const std::function<void(const std::string&)>& progress);
 void write_lmp2_preintegral_plan(const std::filesystem::path& directory,
                                const Lmp2PreintegralPlan& plan);
-// Collective domain-selection pilot; does not construct a full Hamiltonian.
+// Collective domain analysis; does not construct a full Hamiltonian.
 void run_lmp2_preintegral_pilot(
     const modernqc::molecule::Molecule& molecule,
     const modernqc::integrals::Libint2IntegralProvider& provider,

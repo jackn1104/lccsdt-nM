@@ -1009,7 +1009,7 @@ int main(int argc, char** argv) {
     const bool lmp2_preintegral = boolean_from_environment("CCSD_LMP2_PREINTEGRAL");
     const bool lmp2_adaptive = boolean_from_environment("CCSD_LMP2_ADAPTIVE");
     if(lmp2_adaptive&&(!lmp2_domain_audit||lmp2_preintegral))
-      throw std::invalid_argument("adaptive MP2 requires audit-only and cannot combine with preintegral pilot");
+      throw std::invalid_argument("adaptive MP2 requires audit-only and cannot combine with preintegral domain analysis");
     if(lmp2_preintegral&&!lmp2_domain_audit)
       throw std::invalid_argument("preintegral LMP2 requires CCSD_LMP2_DOMAIN_AUDIT_ONLY=1; the selected domains are not applied to CCSD(T)");
     if (lmp2_domain_audit &&
@@ -1617,9 +1617,9 @@ int main(int argc, char** argv) {
           options.use_direct_spatial_singles = native_spatial_pairs;
           options.use_direct_spatial_doubles = native_spatial_pairs;
           if (native_spatial_pairs)
-            report_progress("CCSD native spatial pairs enabled; iterative spin T1/T2 expansion=none; spatial BLAS panels; requires residual validation before production use");
+            report_progress("CCSD native spatial pairs enabled; iterative spin T1/T2 expansion=none; spatial BLAS panels; validate residuals against the reference executor for the target system");
           if (compact_spatial_doubles)
-            report_progress("CCSD compact spatial doubles enabled; Fock corrections cached per evaluation; mixed-pair spin sums use DGEMM; full equations; requires molecular residual validation before production use");
+            report_progress("CCSD compact spatial doubles enabled; Fock corrections cached per evaluation; mixed-pair spin sums use DGEMM; full equations; validate molecular residuals against the reference executor for the target system");
           if (native_spatial_pairs)
             report_progress("native spatial timing: W_abef total is measured; build/BLAS subphase fields are uninstrumented (zero is not a timing measurement); spatial workspace field excludes transient pair matrices");
           options.use_incremental_diis_gram =
@@ -2917,7 +2917,7 @@ int main(int argc, char** argv) {
                 "CCSD_LMP2_PREINTEGRAL_BUDGET",1e-7),
             mib_from_environment("CCSD_LMP2_DOMAIN_WORKSPACE_MIB",512,false)*1024*1024,
             openmp_thread_count(),report_progress);
-        report_progress("preintegral LMP2 pilot complete; full Hamiltonian and CCSD/(T) skipped");
+        report_progress("preintegral LMP2 domain analysis complete; full Hamiltonian and CCSD/(T) skipped");
         return 0;
       }
 
@@ -3295,7 +3295,7 @@ int main(int argc, char** argv) {
         std::cout.flush();
       }
       if (lmp2_domain_audit) {
-        report_progress("LMP2 domain pilot started; full PM Fock coupling; "
+        report_progress("LMP2 domain analysis started; full PM Fock coupling; "
                         "rank-zero bounded reference; no CCSD or (T) solve");
         std::vector<int> status(1,0);
         std::string failure;
@@ -3329,11 +3329,11 @@ int main(int argc, char** argv) {
           std::cout<<"LMP2 retained elements "<<pilot.retained_elements<<"/"<<pilot.amplitudes.size()
               <<"\nLMP2 fixed-amplitude omission bound "<<pilot.omission_bound<<" Eh\n"
               <<"LMP2 domain audit directory "<<audit_path<<"\n"
-              <<"LMP2 domain pilot complete; domains not yet validated for CCSD(T) accuracy\n"<<std::flush;
+              <<"LMP2 domain analysis complete; MP2 error bounds do not establish CCSD(T) accuracy\n"<<std::flush;
         } catch(const std::exception& e) {status[0]=1;failure=e.what();}
         localized_cc::parallel::broadcast_in_place(status);
         if(status[0]) throw std::runtime_error(communicator.rank==0?failure:
-            "rank-zero LMP2 domain pilot failed; no CCSD selection applied");
+            "rank-zero LMP2 domain analysis failed; no CCSD selection applied");
         return 0;
       }
       localized_cc::CcsdOptions localized_ccsd_options;
@@ -3401,7 +3401,7 @@ int main(int argc, char** argv) {
       }
       if (use_block_sparse_ccsd && projection_source)
         throw std::runtime_error(
-            "basis-projected sparse CCSD restart is not yet admitted");
+            "basis-projected sparse CCSD restart is unsupported");
       if (!use_block_sparse_ccsd && !checkpoint.localized_ccsd &&
           projection_source &&
           target_source_overlap && projection_source->localization &&
@@ -4941,8 +4941,8 @@ int main(int argc, char** argv) {
                       << many_body_energy(*triples_partition, order) << " Eh\n";
         else
           std::cout
-              << "(T) nM partition          pending exact streamed local "
-                 "back-transformation\n";
+              << "(T) nM partition          unavailable: this path does not "
+                 "perform the required localized back-transformation\n";
         std::cout << std::scientific
                   << "CCSD partition error      "
                   << ccsd_partition->sum_error << " Eh\n"
@@ -4988,8 +4988,8 @@ int main(int argc, char** argv) {
                     << ".orbitals.csv\n";
         else if (partition_prefix != "none")
           std::cout
-              << "Partition CSV status       not written: exact streamed "
-                 "(T) nM partition is unfinished\n";
+              << "Partition CSV status       not written: (T) nM partition "
+                 "is unavailable for this path\n";
       }
     }
 

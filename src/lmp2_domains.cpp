@@ -155,7 +155,7 @@ Lmp2DomainResult select_lmp2_domains(const Matrix& foo,const Matrix& fvv,
     for(std::size_t k=0;k<count;++k) p[k]=z[k]+(refresh?0.:beta*p[k]);
     rz=next;
   }
-  if(!converged) throw std::runtime_error("LMP2 domain pilot did not converge; no selection admitted");
+  if(!converged) throw std::runtime_error("LMP2 domain analysis did not converge; no selection applied");
   std::map<std::array<int,4>,Lmp2BlockScore> scores;
   for(std::size_t i=0;i<o;++i) for(std::size_t j=0;j<o;++j)
     for(std::size_t a=0;a<v;++a) for(std::size_t b=0;b<v;++b) {
@@ -240,6 +240,6 @@ void write_lmp2_domain_audit(const std::filesystem::path& directory,
    <<"\nworkspace_upper_bytes="<<r.workspace_upper_bytes
    <<"\nretained_elements="<<r.retained_elements
    <<"\nfull_elements="<<r.amplitudes.size()<<"\nprovenance="<<provenance<<'\n';m.close();
-  auto done=output(directory/"COMPLETE");done<<"LMP2 domain pilot complete; domains not yet validated for CCSD(T) accuracy\n";done.close();
+  auto done=output(directory/"COMPLETE");done<<"LMP2 domain analysis complete; MP2 error bounds do not establish CCSD(T) accuracy\n";done.close();
 }
 } // namespace localized_cc

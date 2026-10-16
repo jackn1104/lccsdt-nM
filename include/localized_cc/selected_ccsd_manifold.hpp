@@ -36,7 +36,7 @@ struct SinglesMonomerBlock {
 struct DoublesMonomerBlock {
   // Ordered labels correspond to (i,j,a,b). Keeping the order at this
   // planning boundary avoids assuming an amplitude symmetry that differs
-  // between the retained spin-orbital and future spatial CCSD equations.
+  // between spin-orbital and spatial CCSD representations.
   std::array<std::size_t, 4> monomers{};
   std::array<std::size_t, 4> extents{};
   std::size_t monomer_span{};
