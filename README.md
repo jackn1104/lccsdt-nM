@@ -140,14 +140,6 @@ For the supplied two-node Slurm layout:
 sbatch --account=YOUR_ACCOUNT examples/restart.slurm /absolute/path/run
 ```
 
-Restart preserves the original scientific settings, executable checksum and
-MPI layout. Verification reads are still necessary. Completed durable moment
-rows and Laplace points are reused; unfinished rows/points may be repeated.
-Memory-mode moment construction is not durable. Sector/point checkpoints are
-Linux-only; macOS retains RHF, PM, Hamiltonian and CCSD checkpoints but recomputes
-triples after an interruption. Old development checkpoints
-are not automatically imported by this new interface.
-
 ## Accuracy and output
 
 Defaults: CCSD convergence threshold `1e-8`, RMS residual measure, AO Schwarz
