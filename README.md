@@ -10,8 +10,7 @@ confidence of at least 0.8. CCSD reports M1–M4 and `(T)` reports M1–M6.
 ## Build
 
 Requirements: CMake 3.22+, a C++20 compiler, Eigen3, Libint2, Boost headers, LP64 BLAS/LAPACK,
-and Python 3.9+ for the launcher. MPI and OpenMP are optional. Fortran kernels
-are optional (`-DLCCSDT_FORTRAN=ON`). Dependencies are not downloaded.
+and Python 3.9+ for the launcher. MPI and OpenMP are optional.
 Install the integral library's basis data, including `ano-rcc` for PM
 localization and the requested orbital basis. Set `LIBINT_DATA_PATH` if
 your integral library installation requires it.
