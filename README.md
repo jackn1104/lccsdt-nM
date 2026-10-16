@@ -1,22 +1,11 @@
 # lccsdt
 
-Full-space localized CCSD and orbital-invariant Laplace `(T)` for neutral,
+Localized CCSD and Laplace transform `(T)` for neutral,
 closed-shell water clusters. Occupied and virtual orbitals are localized
-separately with Pipek–Mezey; symmetric Löwdin populations assign monomer
+separately with Pipek–Mezey and symmetric Löwdin populations assign monomer
 labels. The default freezes oxygen 1s orbitals and requires assignment
-confidence of at least 0.8. No density fitting or monomer-span truncation is
-used. CCSD reports M1–M4 and `(T)` reports M1–M6, up to the number of waters.
+confidence of at least 0.8. CCSD reports M1–M4 and `(T)` reports M1–M6.
 
-**Source preview with laptop validation:** Debug and Release equation tests,
-full-space W2/aVDZ, and a copied-checkpoint triples-only restart passed on
-Apple Silicon. MPI, Linux disk persistence and larger molecular cases have
-not been validated for this standalone package. All six suites also passed
-UndefinedBehaviorSanitizer. AddressSanitizer was blocked by a runtime startup
-failure reproduced with an empty program; it did not pass. Validate on your
-target system before production use. W2 total CCSD(T) differed from the stored
-canonical reference by 6.62e-10 Eh; the four energy components passed 1e-7 Eh.
-The copied-checkpoint restart reported zero CCSD iterations and matched total
-and M1/M2 energies at printed precision (1e-12 Eh comparison).
 
 ## Build
 
@@ -59,7 +48,7 @@ interrupted disk-checkpoint restarts before relying on a new cluster build.
 ./lccsdt run examples/water.xyz --basis sto-3g --threads 2 --memory-mib 2048 --output runs/water
 ```
 
-This is a small demonstration geometry, not a canonical-energy reference.
+This is a small demonstration geometry, not a canonical energy reference.
 Larger augmented bases may exceed a laptop's memory. `--memory-mib` limits
 additional numerical workspace **per rank**, not total process RSS. Resident
 integrals, amplitudes, runtime state and temporary arrays require additional
@@ -67,7 +56,7 @@ memory. There is no promise that arbitrary cluster/basis combinations fit.
 
 ### Explicit W2/aVDZ laptop validation
 
-The bundled `examples/w2-avdz.xyz` is the supplied CCSD(T)/aVDZ-optimized
+The bundled `examples/w2-avdz.xyz` is the supplied CCSD(T)/aVDZ optimized
 dimer input geometry. On a macOS laptop with the listed Homebrew dependencies
 already installed and at least 16 GiB RAM, run:
 
@@ -75,15 +64,12 @@ already installed and at least 16 GiB RAM, run:
 bash scripts/validate-laptop-w2.sh
 ```
 
-This is an explicit foreground calculation: it builds Debug and Release,
-runs equation/launcher tests, then computes full-space W2/aVDZ with PM nM
+This is an explicit foreground calculation. It builds Debug and Release,
+runs equation/launcher tests, then computes W2/aVDZ with PM nM
 and closed-shell spin symmetry. It uses at most four physical threads and
 checks all four canonical energy components to 1e-7 Eh. Existing runs are
-not overwritten. It does not install dependencies or publish anything.
-It then copies the completed checkpoints and verifies a triples-only restart
-with zero CCSD iterations and total/M1/M2 agreement to 1e-12 Eh.
-The canonical reference has no PM nM components: those are checked for sum
-closure here and by equation tests, not against invented reference values.
+not overwritten.
+
 
 ## Other geometries and basis sets
 
@@ -100,10 +86,9 @@ systems and arbitrary point groups are not exposed by this launcher.
 
 The supplied Slurm script requests two CPU nodes, four ranks per node and
 32 physical threads per rank. Its 64 CPUs/task assumes two hardware threads
-per physical core; adapt these together for your cluster. Its memory request
+per physical core and adapt these together for your cluster. Its memory request
 is 460000 MiB per node. The executable receives 65536 MiB additional
-workspace per rank, leaving room for resident allocations. This is a plan,
-not a certified RSS bound.
+workspace per rank.
 
 ```bash
 sbatch --account=YOUR_ACCOUNT examples/cluster.slurm /absolute/path/w6.xyz aug-cc-pVDZ /absolute/path/new-run
@@ -115,13 +100,7 @@ For another geometry/basis, change the arguments, for example:
 sbatch --account=YOUR_ACCOUNT examples/cluster.slurm /absolute/path/w3.xyz aug-cc-pVTZ /absolute/path/new-w3-run
 ```
 
-Edit partition/QoS/constraint/module settings to match your site. The script
-does not contain a private account, fixed scratch path or automatic module
-selection. Multi-node disk execution requires a shared filesystem visible
-at the same absolute path on all nodes. Check quota, not only `df` free space.
-The disk allowance defaults to 262144 MiB per rank and can be changed with
-`--scratch-mib`; two nodes with eight ranks can therefore need substantial
-scratch. It is a cap, not a reservation supplied by the scheduler.
+Edit partition/QoS/constraint/module settings to match your site.
 
 ## Symmetry
 
@@ -131,7 +110,7 @@ Spin-aware moments and exact virtual-exchange reuse remain enabled. This
 does not assume that different water molecules are geometrically equivalent.
 
 `--symmetry point-group --storage memory` enables symmetry-adapted PM
-localization and verified point-group task reuse. Candidate mappings exist
+localization and verified point group task reuse. Candidate mappings exist
 for particular 3-, 4-, 6- and 8-water geometries, not every cluster of those
 sizes. Atom, orbital and Hamiltonian covariance checks must pass; coordinates
 are never snapped and ambiguous orbital maps fail. This mode uses the
@@ -177,16 +156,6 @@ are not automatically imported by this new interface.
 Defaults: CCSD convergence threshold `1e-8`, RMS residual measure, AO Schwarz
 threshold `1e-12`, seven minimax Laplace points with requested quadrature
 energy bound `1e-7 Eh`. If the quadrature is insufficient, the calculation
-must fail rather than silently weaken the bound. These settings do not
-constitute a universal `1e-7 Eh` bound on the complete CCSD(T) error.
+must fail rather than silently weaken the bound. 
 
-The launcher verifies finite reported energies, total-energy arithmetic and
-nM sum closure to `1e-7 Eh`. `COMPLETE` means exit zero and these output
-checks passed; it does not certify agreement with an independent reference.
-Validate total and each nM class against a same-geometry, same-core,
-same-basis reference before scientific use. nM components depend on the PM
-orbital gauge; compare them using the same localized orbitals and labels.
-
-License: MIT for project-owned code; required component terms and provenance
-are preserved separately in NOTICES.md. The runtime numerical kernels use
-C++20, with optional Fortran contractions; Python only launches and checks runs.
+License: MIT. The runtime numerical kernels use C++20
