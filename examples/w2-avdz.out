@@ -1,0 +1,70 @@
+CCSD iterations
+CCSD iteration 1: E_corr=-4.081957e-01 Eh; dE=5.290099e-02 Eh; R1(RMS)=1.802610e-03; R2(RMS)=6.537872e-04
+CCSD iteration 2: E_corr=-4.556750e-01 Eh; dE=-4.747932e-02 Eh; R1(RMS)=1.261914e-03; R2(RMS)=3.099430e-04
+CCSD iteration 3: E_corr=-4.486948e-01 Eh; dE=6.980232e-03 Eh; R1(RMS)=7.850577e-04; R2(RMS)=1.778609e-04
+CCSD iteration 4: E_corr=-4.546849e-01 Eh; dE=-5.990103e-03 Eh; R1(RMS)=5.243552e-04; R2(RMS)=7.639509e-05
+CCSD iteration 5: E_corr=-4.596128e-01 Eh; dE=-4.927876e-03 Eh; R1(RMS)=3.397899e-04; R2(RMS)=5.201323e-05
+CCSD iteration 6: E_corr=-4.588407e-01 Eh; dE=7.720960e-04 Eh; R1(RMS)=1.558281e-04; R2(RMS)=2.222720e-05
+CCSD iteration 7: E_corr=-4.576699e-01 Eh; dE=1.170738e-03 Eh; R1(RMS)=9.337191e-05; R2(RMS)=1.984468e-05
+CCSD iteration 8: E_corr=-4.574168e-01 Eh; dE=2.531427e-04 Eh; R1(RMS)=4.536382e-05; R2(RMS)=6.837294e-06
+CCSD iteration 9: E_corr=-4.577569e-01 Eh; dE=-3.401166e-04 Eh; R1(RMS)=2.774268e-05; R2(RMS)=5.195811e-06
+CCSD iteration 10: E_corr=-4.578830e-01 Eh; dE=-1.261173e-04 Eh; R1(RMS)=1.323386e-05; R2(RMS)=3.057938e-06
+CCSD iteration 11: E_corr=-4.578259e-01 Eh; dE=5.710946e-05 Eh; R1(RMS)=8.623976e-06; R2(RMS)=3.056655e-06
+CCSD iteration 12: E_corr=-4.577823e-01 Eh; dE=4.365082e-05 Eh; R1(RMS)=5.595413e-06; R2(RMS)=2.926404e-06
+CCSD iteration 13: E_corr=-4.577924e-01 Eh; dE=-1.012889e-05 Eh; R1(RMS)=3.255454e-06; R2(RMS)=2.077239e-06
+CCSD iteration 14: E_corr=-4.578110e-01 Eh; dE=-1.857318e-05 Eh; R1(RMS)=1.818908e-06; R2(RMS)=6.840678e-07
+CCSD iteration 15: E_corr=-4.578115e-01 Eh; dE=-5.341722e-07 Eh; R1(RMS)=1.302494e-06; R2(RMS)=4.473797e-07
+CCSD iteration 16: E_corr=-4.578132e-01 Eh; dE=-1.717868e-06 Eh; R1(RMS)=6.485107e-07; R2(RMS)=4.036436e-07
+CCSD iteration 17: E_corr=-4.578171e-01 Eh; dE=-3.852944e-06 Eh; R1(RMS)=4.120696e-07; R2(RMS)=1.811430e-07
+CCSD iteration 18: E_corr=-4.578164e-01 Eh; dE=6.627724e-07 Eh; R1(RMS)=2.856675e-07; R2(RMS)=7.195632e-08
+CCSD iteration 19: E_corr=-4.578157e-01 Eh; dE=7.501401e-07 Eh; R1(RMS)=2.172742e-07; R2(RMS)=3.033780e-08
+CCSD iteration 20: E_corr=-4.578162e-01 Eh; dE=-5.495198e-07 Eh; R1(RMS)=1.411435e-07; R2(RMS)=2.310478e-08
+CCSD iteration 21: E_corr=-4.578162e-01 Eh; dE=-2.913970e-08 Eh; R1(RMS)=8.137616e-08; R2(RMS)=4.427439e-08
+CCSD iteration 22: E_corr=-4.578158e-01 Eh; dE=4.063563e-07 Eh; R1(RMS)=4.459679e-08; R2(RMS)=3.919511e-08
+CCSD iteration 23: E_corr=-4.578158e-01 Eh; dE=2.370917e-08 Eh; R1(RMS)=3.117935e-08; R2(RMS)=1.988622e-08
+CCSD iteration 24: E_corr=-4.578159e-01 Eh; dE=-7.640203e-08 Eh; R1(RMS)=1.981245e-08; R2(RMS)=8.294105e-09
+CCSD iteration 25: E_corr=-4.578159e-01 Eh; dE=2.163806e-08 Eh; R1(RMS)=1.253223e-08; R2(RMS)=5.807068e-09
+CCSD iteration 26: E_corr=-4.578158e-01 Eh; dE=2.449950e-08 Eh; R1(RMS)=7.751593e-09; R2(RMS)=4.549468e-09
+CCSD iteration 27: E_corr=-4.578159e-01 Eh; dE=-2.236715e-08 Eh; R1(RMS)=4.998230e-09; R2(RMS)=2.133910e-09
+CCSD iteration 28: E_corr=-4.578159e-01 Eh; dE=-1.617975e-08 Eh; R1(RMS)=3.638501e-09; R2(RMS)=1.225274e-09
+CCSD iteration 29: E_corr=-4.578159e-01 Eh; dE=-3.505731e-09 Eh; R1(RMS)=2.444163e-09; R2(RMS)=4.209903e-10
+CCSD convergence check 29: E_corr=-4.578159e-01 Eh; dE=-3.505731e-09 Eh; R1(RMS)=1.707996e-09; R2(RMS)=5.233732e-10
+CCSD converged
+Laplace (T) started
+Laplace (T) sector 0: point 1/7 complete
+Laplace (T) sector 0: point 2/7 complete
+Laplace (T) sector 0: point 3/7 complete
+Laplace (T) sector 0: point 4/7 complete
+Laplace (T) sector 0: point 5/7 complete
+Laplace (T) sector 0: point 6/7 complete
+Laplace (T) sector 0: point 7/7 complete
+Laplace (T) sector 1: point 1/7 complete
+Laplace (T) sector 1: point 2/7 complete
+Laplace (T) sector 1: point 3/7 complete
+Laplace (T) sector 1: point 4/7 complete
+Laplace (T) sector 1: point 5/7 complete
+Laplace (T) sector 1: point 6/7 complete
+Laplace (T) sector 1: point 7/7 complete
+Laplace (T) point 1/7: energy contribution=-2.805615276626e-03 Eh
+Laplace (T) point 2/7: energy contribution=-4.135501097273e-03 Eh
+Laplace (T) point 3/7: energy contribution=-2.800890246323e-03 Eh
+Laplace (T) point 4/7: energy contribution=-1.057796879569e-03 Eh
+Laplace (T) point 5/7: energy contribution=-2.064061476998e-04 Eh
+Laplace (T) point 6/7: energy contribution=-1.506214440378e-05 Eh
+Laplace (T) point 7/7: energy contribution=-1.695299889734e-07 Eh
+Laplace (T) complete
+CCSD convergence threshold  1.000000e-08
+RHF                       -152.087407652935 Eh
+CCSD completed iterations   29
+CCSD iterations this run    29
+CCSD correlation          -0.457815879677 Eh
+(T) correction            -0.011021441322 Eh
+Total CCSD(T)             -152.556244973934 Eh
+Laplace quadrature bound    1.498822332229e-08 Eh
+CCSD M1                   -0.437665458036 Eh
+CCSD M2                   -0.020150421641 Eh
+(T) M1                    -0.009654995847 Eh
+(T) M2                    -0.001366445475 Eh
+CCSD partition error        -3.330669073875e-16 Eh
+(T) partition error         0.000000000000e+00 Eh
+wall time                   296.071236500000 s
