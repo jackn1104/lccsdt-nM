@@ -10,11 +10,14 @@ copyright are preserved in `vendor/reference/LICENSE`.
 
 The CCSD/triples numerical source snapshot is
 `c7bd288b6edb825fe75bff99b0ade9a9adb1e0cf`. Internal identifiers are retained
-to avoid unnecessary numerical and checkpoint-format changes. Historical
-algorithmic provenance is preserved in `notices/kernel-provenance.md` and
-`notices/spatial-provenance.md`; these historical documents are not current
-performance claims. They record NWChem as an algorithmic reference, not a
-vendored solver. The original Python prototype is not included.
+to avoid unnecessary numerical and checkpoint-format changes. NWChem's legacy
+CCSD module at commit `37975061856208c94946e6f59afa8b26906a4ac3` was an
+algorithmic reference, particularly its spatial-pair and OpenMP organization:
+https://github.com/nwchemgit/nwchem/tree/37975061856208c94946e6f59afa8b26906a4ac3/src/ccsd
+NWChem is distributed under ECL-2.0; its solver source is not vendored here.
+The C++ spatial executor and ISO_C_BINDING Fortran kernels implement this
+project's CCSD equations, not a copied standalone NWChem solver. This does not
+claim NWChem performance parity. The original Python prototype is not included.
 
 Global Arrays is not enabled or linked by this package. Its existing notice
 is retained for the optional, inactive source adapter. Eigen, Libint2,

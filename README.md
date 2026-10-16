@@ -10,7 +10,13 @@ used. CCSD reports M1–M4 and `(T)` reports M1–M6, up to the number of waters
 **Source preview with laptop validation:** Debug and Release equation tests,
 full-space W2/aVDZ, and a copied-checkpoint triples-only restart passed on
 Apple Silicon. MPI, Linux disk persistence and larger molecular cases have
-not been validated for this standalone package. See VALIDATION.md before production.
+not been validated for this standalone package. All six suites also passed
+UndefinedBehaviorSanitizer. AddressSanitizer was blocked by a runtime startup
+failure reproduced with an empty program; it did not pass. Validate on your
+target system before production use. W2 total CCSD(T) differed from the stored
+canonical reference by 6.62e-10 Eh; the four energy components passed 1e-7 Eh.
+The copied-checkpoint restart reported zero CCSD iterations and matched total
+and M1/M2 energies at printed precision (1e-12 Eh comparison).
 
 ## Build
 
@@ -44,7 +50,8 @@ Load the site's compiler/MPI/library environment first. For a compiler
 wrapper that supplies serial BLAS/LAPACK, add
 `-DCMAKE_CXX_COMPILER=CC -DLCCSDT_WRAPPER_BLAS=ON`. Do not enable threaded
 BLAS beneath OpenMP without a deliberate benchmark. Run the numerical tests
-on compute nodes; see VALIDATION.md.
+on compute nodes. Compare serial and MPI energies and nM components, and verify
+interrupted disk-checkpoint restarts before relying on a new cluster build.
 
 ## Laptop example
 
