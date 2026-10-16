@@ -1,0 +1,17 @@
+{
+  "system": "water dimer",
+  "geometry_level": "CCSD(T)/aug-cc-pVDZ",
+  "geometry_file": "w2-avdz.xyz",
+  "geometry_sha256": "29e5c7938bf9085928a5d16fc2f159dcb0406257ca6075ef517a31cbef7369df",
+  "source_output": "w2_ccd_cct_ccq_mbe.56823943.out",
+  "basis": "aug-cc-pVDZ",
+  "units": "hartree",
+  "tolerance": 1e-7,
+  "energies": {
+    "RHF": -152.087407664949,
+    "localized CCSD corr": -0.457815869881595,
+    "localized (T)": -0.011021439765727,
+    "localized CCSD(T)": -152.556244974596322
+  },
+  "notes": "Reference components transcribed from the existing archived reference table. Total is their sum. Coordinates retain the supplied input precision. No independent canonical nM reference is implied."
+}

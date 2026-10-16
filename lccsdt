@@ -1,0 +1,305 @@
+#!/usr/bin/env python3
+"""Small, explicit launcher for full-space localized CCSD and Laplace (T)."""
+from __future__ import annotations
+
+import argparse
+import fcntl
+import hashlib
+import json
+import math
+import os
+from pathlib import Path
+import re
+import shutil
+import subprocess
+import sys
+from datetime import datetime, timezone
+
+ROOT = Path(__file__).resolve().parent
+BASES = {"sto-3g": "sto-3g", "cc-pvdz": "ccdz", "ccdz": "ccdz",
+         "avdz": "avdz", "aug-cc-pvdz": "avdz",
+         "avtz": "avtz", "aug-cc-pvtz": "avtz",
+         "avqz": "avqz", "aug-cc-pvqz": "avqz"}
+
+
+def positive(value: str) -> int:
+    number = int(value)
+    if number <= 0:
+        raise argparse.ArgumentTypeError("must be a positive integer")
+    return number
+
+
+def digest(path: Path) -> str:
+    result = hashlib.sha256()
+    with path.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            result.update(chunk)
+    return result.hexdigest()
+
+
+def check_geometry(path: Path) -> int:
+    lines = path.read_text().splitlines()
+    if len(lines) < 3:
+        raise ValueError("expected XYZ: atom count, comment, then coordinates in angstrom")
+    count = int(lines[0])
+    atoms = [line.split() for line in lines[2:] if line.strip()]
+    if count <= 0 or count % 3 or len(atoms) != count:
+        raise ValueError("only complete water clusters are supported")
+    for index, atom in enumerate(atoms):
+        if len(atom) != 4 or atom[0].upper() != ("O" if index % 3 == 0 else "H"):
+            raise ValueError("XYZ must group each monomer as O, H, H")
+        if not all(math.isfinite(float(value)) for value in atom[1:]):
+            raise ValueError("XYZ coordinates must be finite")
+    return count // 3
+
+
+def check_options(config: dict) -> None:
+    if config["storage"] == "disk" and sys.platform != "linux":
+        raise ValueError("disk-backed triples require Linux; use --storage memory on a laptop")
+    if config["symmetry"] == "point-group" and config["storage"] != "memory":
+        raise ValueError("verified point-group execution currently requires --storage memory")
+    if config["symmetry"] == "point-group" and config["waters"] not in (3, 4, 6, 8):
+        raise ValueError("point-group candidates are implemented only for 3, 4, 6 or 8 waters")
+    if config["launcher"] == "serial" and (config["nodes"] != 1 or config["ranks_per_node"] != 1):
+        raise ValueError("multiple ranks require --launcher mpi or --launcher slurm")
+    if config["launcher"] == "mpi" and config["nodes"] != 1:
+        raise ValueError("use the Slurm launcher for explicitly allocated multi-node execution")
+    if config["cpus_per_task"] < config["threads"]:
+        raise ValueError("--cpus-per-task must be at least --threads")
+
+
+def environment(config: dict, run: Path, triples_only: bool) -> dict[str, str]:
+    # Do not inherit unrelated development selectors or numerical overrides.
+    env = {key: value for key, value in os.environ.items()
+           if not key.startswith(("CCSD_", "LCCSDT_", "OMP_"))}
+    threads = str(config["threads"])
+    env.update(OMP_NUM_THREADS=threads, OMP_DYNAMIC="FALSE", OMP_PROC_BIND="spread",
+               OMP_PLACES="cores", OMP_STACKSIZE="64M", OPENBLAS_NUM_THREADS="1",
+               MKL_NUM_THREADS="1", BLIS_NUM_THREADS="1", VECLIB_MAXIMUM_THREADS="1",
+               MPICH_GPU_SUPPORT_ENABLED="0")
+    values = {
+        "SOLVER_BACKEND": "legacy-spatial", "SOLVER_BASIS": "localized",
+        "NATIVE_SPATIAL_PAIRS": "1", "NATIVE_SPATIAL_COMPACT_DOUBLES": "0",
+        "SELECTED_MAXIMUM_MONOMERS": "full", "SELECTED_EXECUTOR": "dense-oracle",
+        "SELECTED_INTEGRAL_BACKEND": "dense-oracle", "AMPLITUDE_BACKEND": "replicated",
+        "LOCALIZED_HAMILTONIAN_BACKEND": "ao-semidirect", "HAMILTONIAN_CHECKPOINT": "1",
+        "WABEF_BACKEND": "tiled-cpu", "WABEF_PACKING_BACKEND": "cached-invariants",
+        "WABEF_TILE_MIB": str(min(512, config["memory_mib"] // 8)),
+        "WABEF_INVARIANT_CACHE_MIB": str(config["memory_mib"] // 4),
+        "SEMIDIRECT_SLICE_CAP_MIB": str(min(8192, config["memory_mib"] // 4)),
+        "INTERMEDIATES_BACKEND": "tiled-cpu", "DOUBLES_BACKEND": "tiled-cpu",
+        "DIIS_GRAM_BACKEND": "incremental", "REPLICATED_DIIS_OWNER": "root",
+        "REPLICATED_DIIS_EXECUTOR": "root-broadcast",
+        "REPLICATED_ENERGY_EXECUTOR": "distributed-openmp", "SPATIAL_DIIS_METRIC": "rms",
+        "DIIS_SIZE": "8", "CONVERGENCE_THRESHOLD": "1e-8", "RESIDUAL_METRIC": "rms",
+        "AO_SCHWARZ_THRESHOLD": "1e-12",
+        "EXECUTION_STAGE": "ccsd-only" if config["stage"] == "ccsd" else "full",
+        "REBUILD_LEGACY_ONE_BODY": "1",
+        "REFINE_SAVED_CCSD": "0", "REQUIRE_CONVERGED_RESTART": "1" if triples_only else "0",
+        "TRIPLES_BACKEND": "tiled-cpu", "TRIPLES_TILE_SIZE": "64",
+        "TRIPLES_SHARED_PAIR_PACKING": "1", "TRIPLES_SPIN_AWARE": "1",
+        "LOCALIZED_TRIPLES_REPRESENTATION": "laplace", "LAPLACE_TRIPLES_SCHEME": "minimax",
+        "LAPLACE_TRIPLES_POINTS": "7", "LAPLACE_TRIPLES_ERROR_TOLERANCE": "1e-7",
+        "LAPLACE_TRIPLES_SECTOR_STREAMING": "1", "TRIPLES_DISK_PARALLEL_PANELS": "0",
+        "TRIPLES_TWO_SPIN_SECTORS": "1" if config["symmetry"] == "spin" else "0",
+        "PM_TASK_SYMMETRY": "1" if config["symmetry"] == "point-group" else "0",
+        "PM_RESIDUAL_ORBITS": "1" if config["symmetry"] == "point-group" else "0",
+        "PM_PROPAGATION_ORBITS": "1" if config["symmetry"] == "point-group" else "0",
+    }
+    if triples_only:
+        values["EXECUTION_STAGE"] = "full"
+    if config["storage"] == "disk":
+        values.update(TRIPLES_SCRATCH_DIR=str(run / "scratch"),
+                      TRIPLES_SCRATCH_MIB_PER_RANK=str(config["scratch_mib"]),
+                      TRIPLES_PANEL_ROWS="8",
+                      TRIPLES_MOMENT_CHECKPOINT_DIR=str(run / "moments"))
+    # The durable sector writer uses Linux filesystem APIs. Resident runs on
+    # other platforms still retain RHF/PM/Hamiltonian/CCSD checkpoints.
+    if config["symmetry"] == "spin" and sys.platform.startswith("linux"):
+        values.update(TRIPLES_SECTOR_CHECKPOINT=str(run / "triples-sectors.chk"),
+                      TRIPLES_SECTOR_IDENTITY=config["identity"])
+    env.update({"CCSD_" + key: value for key, value in values.items()})
+    return env
+
+
+def command(config: dict, run: Path, restart: bool) -> list[str]:
+    args = [config["engine"], str(run / "geometry.xyz"), config["basis"],
+            str(config["memory_mib"]), "localized", "1", "atomic",
+            str(run / "state.chk"), "required" if restart else "none",
+            "pm", "0.8", "none", "0", "1e-7", "none"]
+    ranks = config["nodes"] * config["ranks_per_node"]
+    if config["launcher"] == "slurm":
+        return ["srun", "--export=ALL", "--exact", "--kill-on-bad-exit=1",
+                f"--nodes={config['nodes']}", f"--ntasks={ranks}",
+                f"--ntasks-per-node={config['ranks_per_node']}",
+                f"--cpus-per-task={config['cpus_per_task']}", "--cpu-bind=cores"] + args
+    if config["launcher"] == "mpi":
+        return ["mpiexec", "-n", str(ranks)] + args
+    return args
+
+
+def check_results(text: str, waters: int, stage: str) -> None:
+    def value(label: str) -> float:
+        match = re.search(r"^" + re.escape(label) + r"\s+([-+0-9.eE]+)\s+Eh\s*$",
+                          text, re.MULTILINE)
+        if match is None or not math.isfinite(float(match[1])):
+            raise RuntimeError(f"missing or nonfinite final energy: {label}")
+        return float(match[1])
+    corr = value("localized CCSD corr")
+    cc_parts = [value(f"CCSD M{n}") for n in range(1, min(waters, 4) + 1)]
+    if abs(math.fsum(cc_parts) - corr) > 1e-7:
+        raise RuntimeError("CCSD nM sum does not close within 1e-7 Eh")
+    if stage == "full":
+        triples = value("localized (T)")
+        t_parts = [value(f"(T) M{n}") for n in range(1, min(waters, 6) + 1)]
+        if abs(math.fsum(t_parts) - triples) > 1e-7:
+            raise RuntimeError("triples nM sum does not close within 1e-7 Eh")
+        if abs(value("RHF") + corr + triples - value("localized CCSD(T)")) > 1e-7:
+            raise RuntimeError("total CCSD(T) energy does not close within 1e-7 Eh")
+
+
+def main() -> int:
+    parser = argparse.ArgumentParser(description=__doc__)
+    sub = parser.add_subparsers(dest="action", required=True)
+    run_parser = sub.add_parser("run", help="start a new, full-space water-cluster calculation")
+    run_parser.add_argument("geometry", type=Path)
+    run_parser.add_argument("--basis", type=str.lower, default="sto-3g", choices=sorted(BASES))
+    run_parser.add_argument("--output", type=Path, required=True)
+    run_parser.add_argument("--build", type=Path, default=ROOT / "build")
+    run_parser.add_argument("--memory-mib", type=positive, default=2048,
+                            help="additional numerical workspace per rank; NOT total RSS")
+    run_parser.add_argument("--scratch-mib", type=positive, default=262144,
+                            help="disk allowance per rank, not a filesystem quota guarantee")
+    run_parser.add_argument("--threads", type=positive, default=1)
+    run_parser.add_argument("--launcher", choices=("serial", "mpi", "slurm"), default="serial")
+    run_parser.add_argument("--nodes", type=positive, default=1)
+    run_parser.add_argument("--ranks-per-node", type=positive, default=1)
+    run_parser.add_argument("--cpus-per-task", type=positive)
+    run_parser.add_argument("--storage", choices=("memory", "disk"), default="memory")
+    run_parser.add_argument("--symmetry", choices=("spin", "point-group"), default="spin")
+    run_parser.add_argument("--stage", choices=("full", "ccsd"), default="full")
+    restart_parser = sub.add_parser("restart", help="resume a run with identical saved settings")
+    restart_parser.add_argument("directory", type=Path)
+    restart_parser.add_argument("--triples-only", action="store_true",
+                                help="require converged saved CCSD; never refine it")
+    args = parser.parse_args()
+    if any(int(os.environ.get(key, "1")) > 1
+           for key in ("OMPI_COMM_WORLD_SIZE", "PMI_SIZE")):
+        raise ValueError("invoke this launcher once, not once per MPI rank")
+    restarting = args.action == "restart"
+    if restarting:
+        run = args.directory.resolve(strict=True)
+        config = json.loads((run / "run.json").read_text())
+        if config.get("format") != 1:
+            raise ValueError("unsupported run manifest")
+        recorded_identity = config["identity"]
+        identity_fields = {key: value for key, value in config.items() if key != "identity"}
+        if hashlib.sha256(json.dumps(identity_fields, sort_keys=True).encode()).hexdigest() != recorded_identity:
+            raise ValueError("run manifest changed; refusing incompatible restart")
+        if not (run / "state.chk").is_file():
+            raise ValueError("saved main checkpoint is missing; refusing a fresh calculation")
+        if digest(run / "geometry.xyz") != config["geometry_sha256"]:
+            raise ValueError("geometry changed since the original run")
+        if digest(Path(config["engine"])) != config["engine_sha256"]:
+            raise ValueError("executable changed; checkpoint migration requires separate validation")
+        if digest(Path(__file__)) != config["launcher_sha256"]:
+            raise ValueError("launcher changed; use the original release for restart")
+    else:
+        geometry = args.geometry.resolve(strict=True)
+        engine = args.build.resolve() / "lccsdt_engine"
+        if not engine.is_file() or not os.access(engine, os.X_OK):
+            raise ValueError(f"build the executable first: {engine}")
+        config = vars(args).copy()
+        config.pop("action")
+        config.pop("geometry")
+        config.pop("output")
+        config.pop("build")
+        config.update(format=1, basis=BASES[args.basis], engine=str(engine),
+                      engine_sha256=digest(engine), geometry_sha256=digest(geometry),
+                      launcher_sha256=digest(Path(__file__)),
+                      waters=check_geometry(geometry))
+        config["cpus_per_task"] = args.cpus_per_task or args.threads
+        if config["memory_mib"] < 512:
+            raise ValueError("request at least 512 MiB additional workspace per rank")
+        config["identity"] = hashlib.sha256(json.dumps(config, sort_keys=True).encode()).hexdigest()
+        run = args.output.resolve()
+        check_options(config)
+        if run.exists():
+            raise ValueError("output directory exists; choose a new path or use restart")
+    check_options(config)
+    build_info = json.loads((Path(config["engine"]).parent / "lccsdt-build.json").read_text())
+    if config["launcher"] != "serial" and not build_info["mpi"]:
+        raise ValueError("multi-process launch requires an MPI-enabled build")
+    if config["launcher"] == "slurm":
+        if not os.environ.get("SLURM_JOB_ID"):
+            raise ValueError("request an allocation or run this command inside an sbatch script")
+        if int(os.environ.get("SLURM_JOB_NUM_NODES", "0")) < config["nodes"]:
+            raise ValueError("allocation has too few nodes")
+        if int(os.environ.get("SLURM_CPUS_PER_TASK", "0")) < config["cpus_per_task"]:
+            raise ValueError("allocation has too few CPUs per task")
+        allocated = os.environ.get("SLURM_JOB_CPUS_PER_NODE", "")
+        cpu_counts = [int(part.split("(")[0]) for part in allocated.split(",") if part]
+        if not cpu_counts or min(cpu_counts) < config["ranks_per_node"] * config["cpus_per_task"]:
+            raise ValueError("allocation has too few CPUs per node for the requested ranks")
+    if not restarting:
+        run.mkdir(parents=True, exist_ok=False)
+        shutil.copyfile(geometry, run / "geometry.xyz")
+        with (run / "run.json").open("x") as output:
+            json.dump(config, output, indent=2, sort_keys=True)
+            output.write("\n")
+    # Advisory OS lock is released even when this process is killed. Never
+    # change or remove existing scientific checkpoint files to acquire a lock.
+    with (run / ".run.lock").open("a") as lock:
+        fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+        if (run / "COMPLETE").exists():
+            raise ValueError("run already completed; preserve this result")
+        for name in ("scratch", "moments"):
+            (run / name).mkdir(exist_ok=True)
+        triples_only = restarting and args.triples_only
+        env = environment(config, run, triples_only)
+        env.pop("SLURM_TRES_PER_TASK", None)
+        env.pop("SLURM_GPUS", None)
+        env["SLURM_EXPORT_ENV"] = "ALL"
+        argv = command(config, run, restarting)
+        stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S.%fZ")
+        log_path = run / f"progress-{stamp}.log"
+        with (run / f"launch-{stamp}.json").open("x") as record:
+            json.dump({"argv": argv, "scientific_environment":
+                       {k: v for k, v in env.items() if k.startswith(("CCSD_", "OMP_"))}},
+                      record, indent=2, sort_keys=True)
+        print(f"RUN DIRECTORY: {run}\nLIVE LOG: {log_path}", flush=True)
+        print("Full PM nM; spatial CCSD; Laplace triples; no density fitting.", flush=True)
+        with log_path.open("x") as log:
+            child = subprocess.Popen(argv, env=env, stdout=subprocess.PIPE,
+                                     stderr=subprocess.STDOUT, text=True, bufsize=1)
+            try:
+                assert child.stdout is not None
+                for line in child.stdout:
+                    log.write(line)
+                    log.flush()
+                    print(line, end="", flush=True)
+                status = child.wait()
+            except BaseException:
+                child.terminate()
+                child.wait()
+                raise
+        if status:
+            raise RuntimeError(f"calculation exited with status {status}; preserve {run}")
+        text = log_path.read_text()
+        stage = "full" if triples_only else config["stage"]
+        check_results(text, config["waters"], stage)
+        if triples_only and not re.search(r"^CCSD iterations this run\s+0\s*$", text, re.MULTILINE):
+            raise RuntimeError("triples-only restart did not confirm zero CCSD iterations")
+        marker = "COMPLETE" if stage == "full" else "CCSD_COMPLETE"
+        with (run / marker).open("w" if restarting else "x") as out:
+            out.write(f"engine_exit=0\nlog={log_path.name}\n")
+        print(f"Completed {stage} stage. Results: {log_path}")
+    return 0
+
+
+if __name__ == "__main__":
+    try:
+        sys.exit(main())
+    except (OSError, ValueError, RuntimeError, KeyError) as error:
+        print(f"error: {error}", file=sys.stderr)
+        sys.exit(2)
