@@ -13,8 +13,9 @@ namespace localized_cc {
 
 class SelectedDoublesView;
 
-// Canonical, frozen-core conventional (T) evaluation following the
-// spin-orbital contraction and permutation conventions used by NWChem TCE.
+// Canonical, frozen-core conventional (T) evaluation with explicit
+// spin-orbital contractions and occupied/virtual antisymmetrization.
+// Development references are recorded in notices/algorithm-references.md.
 // Unlike the localized noncanonical solver, this path requires diagonal
 // occupied-occupied and virtual-virtual Fock blocks and never materializes a
 // complete o^3 v^3 tensor.
@@ -30,7 +31,7 @@ enum class CanonicalTriplesBackend {
   reference_cpu,
   tiled_cpu,
   cuda,
-  // NWChem-TCE-style bounded tensor contractions: construct the same exact
+  // Bounded tensor contractions: construct the same exact
   // D and D+S tiles as the CPU oracle, but evaluate the two dense moment
   // contractions with binary64 cuBLAS before an on-device permutation and
   // energy reduction. The legacy fused CUDA kernel remains available as

@@ -154,9 +154,9 @@ std::pair<double, double> evaluate_occupied_triple(
   std::fill(worker.doubles_moment.begin(), worker.doubles_moment.end(), 0.0);
   std::fill(worker.singles_moment.begin(), worker.singles_moment.end(), 0.0);
 
-  // NWChem TCE forms separate doubles and singles triples numerators for each
-  // six-index task. Here each unique occupied triple is one deterministic
-  // task; the complete P(ijk)P(abc) antisymmetrizer is accumulated explicitly.
+  // Form separate doubles and singles triples numerators. Each unique
+  // occupied triple is one deterministic task; the complete P(ijk)P(abc)
+  // antisymmetrizer is accumulated explicitly.
   for (std::size_t occupied_permutation = 0;
        occupied_permutation < permutations.size(); ++occupied_permutation) {
     const auto& po = permutations[occupied_permutation];

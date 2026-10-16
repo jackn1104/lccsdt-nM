@@ -48,8 +48,8 @@ enum class CcsdAmplitudeBackend {
 
 // Convergence may be measured either with the historical unnormalized
 // Euclidean residual norm or with the RMS residual over the explicitly stored
-// amplitude elements. The latter matches the convention documented for the
-// NWChem CCSD THRESH directive without changing the residual equations.
+// amplitude elements. Choosing the norm changes the convergence measure,
+// not the residual equations. See notices/algorithm-references.md.
 enum class CcsdResidualMetric { l2, rms };
 
 enum class CcsdWabefBackend { cpu, tiled_cpu, cuda };

@@ -120,7 +120,7 @@ triples_energy_tile_size(const TriplesEnergyTile& tile);
 void validate_triples_energy_tile(const TriplesEnergyTile& tile);
 
 // Fixed row-major traversal used as the numerical oracle for the CUDA tile
-// reduction. This preserves the NWChem TCE signs and denominators:
+// reduction. The energy contractions use the signed orbital denominator:
 // D^2/Delta for CCSD[T] and D(D+S)/Delta for CCSD(T).
 [[nodiscard]] TriplesEnergyPair
 reduce_triples_energy_cpu(const TriplesEnergyTile& tile);

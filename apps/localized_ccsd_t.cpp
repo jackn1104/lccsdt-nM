@@ -693,7 +693,7 @@ std::string_view ccsd_solver_backend_name(const CcsdSolverBackend backend) {
   case CcsdSolverBackend::spin_orbital:
     return "spin-orbital";
   case CcsdSolverBackend::legacy_spatial:
-    return "legacy NWChem-style spatial admission";
+    return "legacy closed-shell spatial admission";
   }
   throw std::invalid_argument("unknown CCSD solver backend");
 }
